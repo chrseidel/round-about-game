@@ -1,7 +1,16 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const vm = require('node:vm');
+const { buildSync } = require('esbuild');
+
+const source = buildSync({
+  entryPoints: [require.resolve('./app.js')],
+  bundle: true,
+  write: false,
+  format: 'cjs',
+  platform: 'browser',
+  target: 'es2022',
+}).outputFiles[0].text;
 
 function game() {
   const nodes = new Map();
@@ -21,9 +30,10 @@ function game() {
     },
     window: { addEventListener() {} },
   });
-  vm.runInContext(fs.readFileSync(require.resolve('./app.js'), 'utf8'), context);
-  const state = vm.runInContext('state', context);
-  const run = (code) => vm.runInContext(code, context);
+  context.module = { exports: {} };
+  vm.runInContext(source, context);
+  const state = context.module.exports.state;
+  const run = (code) => context.module.exports[code.replace(/\(\)$/, '')]();
   return { state, run };
 }
 
@@ -142,6 +152,28 @@ test('tipster can send valid clue before countdown expires', () => {
   assert.equal(state.phase, 'handoff');
   assert.equal(state.timer, null);
   assert.equal(state.seconds, 16);
+});
+
+test('typed clue needs explicit submission before grace ends', () => {
+  const { state, run } = game();
+  Object.assign(state, { phase: 'tip', current: 83, clue: 'sweet' });
+  run('onClueTimeUp()');
+  assert.equal(state.phase, 'grace');
+  assert.equal(state.seconds, 3);
+  assert.equal(state.clue, 'sweet');
+  run('submitClue()');
+  assert.equal(state.phase, 'handoff');
+});
+
+test('unsubmitted valid clue is discarded after grace', () => {
+  const { state, run } = game();
+  Object.assign(state, { phase: 'tip', current: 83, clue: 'sweet', pile: 11 });
+  run('onClueTimeUp()');
+  run('discardCard()');
+  assert.equal(state.phase, 'result');
+  assert.equal(state.cards.length, 3);
+  assert.equal(state.lives, 2);
+  assert.equal(state.pile, 12);
 });
 
 test('invalid clue cannot be sent early or during grace period', () => {

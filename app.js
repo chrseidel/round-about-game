@@ -1,3 +1,6 @@
+import { renderBoard } from './web/board.ts';
+import { renderPanel } from './web/panel.ts';
+
 const $ = (selector) => document.querySelector(selector);
 const STARTING_WORDS = [
   'Lantern', 'Moss', 'Thunder', 'Velvet', 'Compass', 'Whisper', 'Marble', 'Festival',
@@ -42,10 +45,6 @@ function startGame() {
   render();
 }
 
-function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
-}
-
 function clueError() {
   const clue = state.clue.trim();
   if (!clue) return 'Enter a clue word.';
@@ -60,10 +59,6 @@ function clueError() {
 
 function validClue() {
   return !clueError();
-}
-
-function gapName(index) {
-  return `Between ${state.cards[index].word} and ${state.cards[(index + 1) % state.cards.length].word}`;
 }
 
 function drawCard() {
@@ -98,17 +93,12 @@ function runTimer(duration, onFinish) {
 
 function onClueTimeUp() {
   if (state.phase !== 'tip') return;
-  if (validClue()) {
-    state.phase = 'handoff';
-    render();
-  } else {
-    state.phase = 'grace';
-    state.seconds = GRACE_SECONDS;
-    render();
-    runTimer(GRACE_SECONDS, () => {
-      if (state.phase === 'grace') discardCard();
-    });
-  }
+  state.phase = 'grace';
+  state.seconds = GRACE_SECONDS;
+  render();
+  runTimer(GRACE_SECONDS, () => {
+    if (state.phase === 'grace') discardCard();
+  });
 }
 
 function discardCard() {
@@ -197,95 +187,13 @@ function nextTurn() {
   render();
 }
 
-function renderBoard() {
-  const ring = $('#ringCards');
-  const board = $('#board');
-  ring.replaceChildren();
-  const count = state.cards.length;
-  const radius = Math.min(board.clientHeight * .39, (board.clientWidth - 84) / 2);
-  state.cards.forEach((cardData, index) => {
-    const angle = -Math.PI / 2 + (index * 2 * Math.PI / count);
-    const card = document.createElement('div');
-    card.className = `ring-card ${[0, 33, 66].includes(cardData.number) ? 'is-anchor' : ''} ${state.recent === cardData.number ? 'is-recent' : ''}`;
-    card.classList.toggle('compact', count > 9);
-    card.innerHTML = `<span class="ring-number">${cardData.number === 0 ? '0/100' : cardData.number}</span><span class="ring-word">${escapeHtml(cardData.word)}</span>`;
-    card.style.left = `calc(50% + ${Math.cos(angle) * radius}px)`;
-    card.style.top = `calc(50% + ${Math.sin(angle) * radius}px)`;
-    ring.append(card);
-
-    const gapAngle = angle + Math.PI / count;
-    const gap = document.createElement('button');
-    gap.type = 'button';
-    gap.className = `ring-gap ${state.selectedGap === index ? 'selected' : ''}`;
-    gap.textContent = state.selectedGap === index ? '⌛' : '+';
-    gap.title = gapName(index);
-    gap.setAttribute('aria-label', gap.title);
-    gap.disabled = state.phase !== 'guess';
-    const gapRadius = radius + (board.clientWidth < 360 ? 23 : 29);
-    gap.style.left = `calc(50% + ${Math.cos(gapAngle) * gapRadius}px)`;
-    gap.style.top = `calc(50% + ${Math.sin(gapAngle) * gapRadius}px)`;
-    gap.addEventListener('click', () => selectGap(index));
-    ring.append(gap);
-  });
-
-  $('#boardMessage').innerHTML = state.phase === 'guess' ? `“${escapeHtml(state.clue.trim())}”` : 'Find the<br /><em>connection.</em>';
-  $('#boardSubline').textContent = state.phase === 'guess' ? 'Choose a gap' : '';
-  $('#pileCount').textContent = `${state.pile} ${state.pile === 1 ? 'CARD' : 'CARDS'} LEFT`;
-}
-
-function renderPanel() {
-  const heading = $('#turnHeading');
-  const description = $('#turnDescription');
-  const content = $('#turnContent');
-  if (state.phase === 'ready') {
-    heading.textContent = 'Ready?';
-    description.textContent = state.pile ? 'Pass the screen to the Tipster.' : 'Draw a replacement card.';
-    content.innerHTML = `<button class="button primary" id="drawButton" type="button">${state.pile ? 'Draw card' : 'Draw replacement'}</button>`;
-    $('#drawButton').addEventListener('click', drawCard);
-  } else if (state.phase === 'tip' || state.phase === 'grace') {
-    const grace = state.phase === 'grace';
-    heading.textContent = grace ? 'Last chance' : 'Your card';
-    description.textContent = grace ? '3 seconds to give a word.' : 'Connect the two words around your number.';
-    content.innerHTML = `<div class="secret-card"><span class="secret-label">TIPSTER ONLY</span><span class="secret-number">${state.current}</span></div><div class="timer-row"><span class="timer-label">${grace ? 'FINAL SECONDS' : 'CLUE TIME'}</span><span class="timer-value ${state.seconds <= 5 ? 'urgent' : ''}" id="timerValue">0:${String(state.seconds).padStart(2, '0')}</span></div><label class="field-label" for="clueInput">ONE-WORD CLUE</label><input class="clue-input" id="clueInput" maxlength="40" placeholder="Type privately..." value="${escapeHtml(state.clue)}" autocomplete="off" aria-describedby="clueNote" aria-invalid="false" /><p class="stage-note" id="clueNote" role="alert"></p><button class="button primary" id="sayButton" type="button">Send word</button>`;
-    const input = $('#clueInput');
-    input.addEventListener('input', (event) => {
-      state.clue = event.target.value;
-      showClueError();
-    });
-    if (grace || state.clue.trim()) showClueError();
-    $('#sayButton').addEventListener('click', submitClue);
-  } else if (state.phase === 'handoff') {
-    heading.textContent = 'Say your word';
-    description.textContent = 'Then hand the screen to the team.';
-    content.innerHTML = `<div class="clue-display">“${escapeHtml(state.clue.trim())}”</div><button class="button primary" id="guessButton" type="button">Let the team guess</button>`;
-    $('#guessButton').addEventListener('click', beginGuess);
-  } else if (state.phase === 'guess') {
-    heading.textContent = 'Place the hourglass';
-    description.textContent = state.lives === 0 ? 'Overtime · one miss ends the game.' : 'Tap a gap in the circle.';
-    content.innerHTML = `${state.lives === 0 ? `<div class="timer-row"><span class="timer-label">DISCUSSION</span><span class="timer-value ${state.seconds <= 5 ? 'urgent' : ''}" id="timerValue">0:${String(state.seconds).padStart(2, '0')}</span></div>` : ''}<button class="button coral" id="placeButton" type="button" ${state.selectedGap === null ? 'disabled' : ''}>Reveal card</button>`;
-    $('#placeButton').addEventListener('click', () => submitGuess());
-  } else if (state.phase === 'result') {
-    const { correct, lower, upper, discarded, timedOut, lost } = state.lastResult;
-    heading.textContent = discarded ? 'Card discarded' : correct ? 'Correct!' : 'Wrong gap';
-    description.textContent = lost ? 'Overtime ended.' : discarded ? 'Life lost. Draw a replacement.' : correct ? 'Card joins the circle.' : timedOut ? 'Time ran out. Card joins its correct gap.' : 'Life lost. Card joins its correct gap.';
-    content.innerHTML = `${discarded ? '' : `<div class="result-card">${escapeHtml(state.clue.trim())} · ${state.current}<strong>${escapeHtml(lower.word)} → ${escapeHtml(upper.word)}</strong></div>`}<button class="button ${correct ? 'primary' : 'coral'}" id="nextButton" type="button">${lost || (correct && state.pile === 0) ? 'See result' : 'Next turn'}</button>`;
-    $('#nextButton').addEventListener('click', nextTurn);
-  } else {
-    const won = state.lastResult.correct && state.pile === 0;
-    heading.textContent = won ? 'You won!' : 'Game over';
-    description.textContent = won ? 'Last card placed correctly.' : 'Wrong placement in Overtime.';
-    content.innerHTML = `<button class="button primary" id="againButton" type="button">Play again</button>`;
-    $('#againButton').addEventListener('click', startGame);
-  }
-}
-
 function render() {
   $('#roundLabel').textContent = `DRAW ${String(state.turn).padStart(2, '0')}`;
   $('#lifeText').textContent = state.lives <= 0 ? 'OVERTIME' : `${state.lives} ${state.lives === 1 ? 'life' : 'lives'} left`;
   $('#lives').innerHTML = Array.from({ length: 3 }, (_, i) => `<div class="life ${i >= state.lives ? 'lost' : ''}">${i >= state.lives ? '×' : '♥'}</div>`).join('');
   $('#lives').setAttribute('aria-label', state.lives <= 0 ? 'Overtime: one wrong answer ends the game' : `${state.lives} lives remaining`);
-  renderBoard();
-  renderPanel();
+  renderBoard(state, selectGap);
+  renderPanel(state, { drawCard, submitClue, beginGuess, submitGuess: () => submitGuess(), nextTurn, startGame, showClueError });
 }
 
 $('#newGameButton').addEventListener('click', () => {
@@ -293,5 +201,7 @@ $('#newGameButton').addEventListener('click', () => {
   $('#confirmDialog').showModal();
 });
 $('#confirmDialog').addEventListener('close', () => { if ($('#confirmDialog').returnValue === 'confirm') startGame(); });
-window.addEventListener('resize', renderBoard);
+window.addEventListener('resize', () => renderBoard(state, selectGap));
 startGame();
+
+export { state, drawCard, submitClue, submitGuess, nextTurn, onClueTimeUp, discardCard, onDiscussionTimeUp, validClue, clueError, startGame };
