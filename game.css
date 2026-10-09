@@ -1,0 +1,112 @@
+:root { font-family: 'DM Sans', sans-serif; color: #274239; background: #f7f5f0; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 3px solid #df9d78; outline-offset: 3px; }
+.app { min-height: 100vh; max-width: 1450px; margin: auto; padding: 0 36px; }
+.topbar { height: 76px; display: flex; align-items: center; border-bottom: 1px solid #e5e7df; gap: 24px; }
+.brand { font: 600 27px 'Fraunces', serif; letter-spacing: -1.4px; white-space: nowrap; }
+.brand span { color: #df9470; }
+.status { margin: auto; display: flex; gap: 14px; align-items: center; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a9a8d; }
+.status-separator { color: #d6dcd2; }
+.new-game { border: 0; background: transparent; color: #667b6d; font-size: 12px; padding: 10px; }
+.new-game:hover { color: #bd785b; }
+.layout { display: grid; grid-template-columns: minmax(0,1fr) 320px; gap: 36px; align-items: center; min-height: calc(100vh - 76px); padding: 26px 0 40px; }
+.board-area { min-width: 0; }
+.board { height: min(690px,calc(100vh - 175px)); min-height: 465px; position: relative; background: #efeee6; border-radius: 8px; overflow: hidden; }
+.orbit { position: absolute; width: min(79%,570px); aspect-ratio: 1; border: 1px dashed #bdcbbd; border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%,-50%); }
+.board-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; pointer-events: none; width: 190px; }
+.center-symbol { font-size: 30px; color: #d99270; }
+.board-center p { font: 400 27px/1.16 'Fraunces', serif; letter-spacing: -.6px; margin: 9px 0; overflow-wrap: anywhere; }
+.board-center em { font-weight: 400; color: #c87958; }
+.board-center>span:last-child { font-size: 10px; color: #8a9b8d; line-height: 1.4; display: block; }
+.ring-card, .ring-gap { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 2; display: flex; align-items: center; justify-content: center; }
+.ring-card { width: 91px; height: 70px; background: #e5a886; color: #493a31; box-shadow: 0 3px 0 #d29979; border-radius: 5px; flex-direction: column; gap: 5px; padding: 5px; text-align: center; overflow-wrap: anywhere; }
+.ring-card.is-anchor { background: #284b40; color: #fff9eb; box-shadow: 0 3px 0 #1e3b32; }
+.ring-card.is-recent { outline: 3px solid #fffdf7; outline-offset: 3px; }
+.ring-number { font: 500 21px/1 'Fraunces', serif; }
+.ring-word { font-size: 11px; font-weight: 700; line-height: 1.05; }
+.ring-card.compact { width: 72px; height: 58px; gap: 3px; }
+.ring-card.compact .ring-number { font-size: 17px; }
+.ring-card.compact .ring-word { font-size: 9px; }
+.ring-gap { border: 1px solid #c5d1c4; border-radius: 50%; width: 24px; height: 24px; background: #fcfbf7; color: #6b8a75; font-size: 19px; line-height: 1; transition: background .15s,transform .15s; }
+.ring-gap:hover:not(:disabled), .ring-gap.selected { background: #db956f; border-color: #db956f; color: #fff; transform: translate(-50%,-50%) scale(1.15); }
+.ring-gap:disabled { opacity: 0; pointer-events: none; }
+.play-panel { background: #fffdf8; border: 1px solid #e8e9df; border-radius: 7px; min-height: 300px; display: flex; flex-direction: column; box-shadow: 0 10px 30px #243e2e09; }
+.panel-header { height: 55px; padding: 0 26px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f0eee7; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: #9aab9a; }
+.lives { display: flex; gap: 6px; }
+.life { width: 19px; text-align: center; color: #db8a68; font-size: 20px; line-height: 1; }
+.life.lost { color: #c4cbc2; }
+.panel-body { padding: 26px; flex: 1; }
+.panel-body h1 { font: 500 32px/1.1 'Fraunces', serif; letter-spacing: -.7px; margin: 0 0 10px; }
+.panel-body>p { font-size: 12px; line-height: 1.55; color: #849387; margin: 0 0 24px; }
+.button { border: 0; border-radius: 4px; padding: 14px 16px; min-height: 45px; width: 100%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; transition: background .15s; }
+.button.primary { background: #284d40; color: #fff; }
+.button.primary:hover { background: #376955; }
+.button.coral { background: #d38160; color: #fff; }
+.button.coral:hover { background: #ba7051; }
+.button.quiet { background: #f1f2eb; color: #45604e; }
+.button:disabled { opacity: .45; cursor: not-allowed; }
+.stage-note { font-size: 11px; line-height: 1.5; color: #bd785b; margin: 8px 0 12px; }
+.stage-note:empty { display: none; }
+.clue-input[aria-invalid="true"] { border-color: #bd674b; background: #fff7f2; }
+.clue-input[aria-invalid="true"]:focus { outline-color: #bd674b; }
+.secret-card { min-height: 135px; background: #284b40; color: #f9f6e9; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; margin-bottom: 18px; }
+.secret-label, .field-label { font-size: 10px; letter-spacing: 1.3px; font-weight: 700; }
+.secret-label { color: #bfd1c2; }
+.secret-number { font: 500 64px/1 'Fraunces', serif; color: #efae8b; }
+.field-label { display: block; color: #8a9b8d; margin-bottom: 8px; }
+.timer-row { display: flex; justify-content: space-between; align-items: center; background: #f4f4ec; padding: 10px 13px; border-radius: 3px; margin-bottom: 16px; }
+.timer-label { font-size: 10px; letter-spacing: 1px; font-weight: 700; color: #869586; }
+.timer-value { font: 500 24px 'Fraunces', serif; color: #3a614c; }
+.timer-value.urgent { color: #cc7658; }
+.clue-input { width: 100%; height: 44px; border: 1px solid #dce3d9; border-radius: 3px; padding: 0 12px; color: #2d4839; background: #fff; }
+.clue-input:focus { outline: 2px solid #a7bfa7; }
+.clue-input::placeholder { color: #a9b5a8; }
+.clue-display { font: 500 23px 'Fraunces', serif; color: #496950; background: #f5f4ec; border-left: 3px solid #dd9b76; padding: 12px 14px; margin-bottom: 16px; overflow-wrap: anywhere; }
+.result-card { background: #f5f4ec; border-radius: 3px; padding: 16px; font-size: 12px; line-height: 1.6; color: #718474; margin-bottom: 18px; }
+.result-card strong { display: block; color: #31543f; font: 500 19px 'Fraunces', serif; margin-top: 5px; }
+dialog { border: 1px solid #e6e7de; border-radius: 6px; padding: 26px; width: min(365px,calc(100% - 30px)); background: #fffdf8; color: #274239; box-shadow: 0 20px 70px #183b3350; }
+dialog::backdrop { background: #172e296e; }
+dialog h2 { font: 500 26px 'Fraunces', serif; margin: 0 0 8px; }
+dialog p { color: #889889; font-size: 12px; margin: 0; }
+.dialog-actions { display: flex; gap: 8px; margin-top: 24px; }
+@media(max-width:950px) {
+  .app { padding: 0 22px; }
+  .layout { gap: 20px; grid-template-columns: minmax(0,1fr) 295px; }
+  .ring-card { width: 76px; height: 63px; }
+  .ring-number { font-size: 19px; }
+  .ring-word { font-size: 10px; }
+  .ring-card.compact { width: 62px; height: 53px; }
+  .ring-card.compact .ring-word { font-size: 8px; }
+}
+@media(max-width:720px) {
+  .topbar { height: 62px; }
+  .status { font-size: 9px; gap: 7px; }
+  .layout { display: flex; flex-direction: column; align-items: stretch; gap: 14px; min-height: 0; padding: 16px 0; }
+  .board { height: min(95vw,530px); min-height: 320px; }
+  .play-panel { min-height: 0; }
+  .panel-body { padding: 20px; }
+  .panel-header { height: 50px; padding: 0 20px; }
+  .ring-card { width: 69px; height: 57px; }
+  .ring-card.compact { width: 55px; height: 47px; }
+  .ring-card.compact .ring-number { font-size: 14px; }
+  .ring-card.compact .ring-word { font-size: 7px; }
+  .ring-gap { width: 20px; height: 20px; font-size: 16px; }
+}
+@media(max-width:400px) {
+  .app { padding: 0 12px; }
+  .brand { font-size: 22px; }
+  .new-game span { display: none; }
+  .board-center { width: 130px; }
+  .board-center p { font-size: 20px; }
+  .board-center>span:last-child { font-size: 9px; }
+  .ring-card { width: 59px; height: 51px; }
+  .ring-number { font-size: 15px; }
+  .ring-word { font-size: 8px; }
+  .ring-card.compact { width: 44px; height: 41px; }
+  .ring-card.compact .ring-number { font-size: 12px; }
+  .ring-card.compact .ring-word { font-size: 6px; }
+  .ring-gap { width: 18px; height: 18px; font-size: 14px; }
+}

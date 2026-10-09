@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f5f0" />
+    <title>One Round</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="game.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">one round<span>.</span></div>
+        <div class="status"><span id="roundLabel">DRAW 01</span><span class="status-separator">·</span><span id="pileCount">12 CARDS LEFT</span></div>
+        <button class="new-game" id="newGameButton" type="button" aria-label="New game">↻ <span>New game</span></button>
+      </header>
+
+      <main class="layout">
+        <section class="board-area" aria-label="Circle of cards">
+          <div class="board" id="board">
+            <div class="orbit"></div>
+            <div id="ringCards"></div>
+            <div class="board-center">
+              <span class="center-symbol" aria-hidden="true">✳</span>
+              <p id="boardMessage">Find the<br /><em>connection.</em></p>
+              <span id="boardSubline">Tap a gap to place the hourglass</span>
+            </div>
+          </div>
+        </section>
+
+        <aside class="play-panel" aria-label="Current turn">
+          <div class="panel-header"><span id="lifeText">3 lives left</span><div class="lives" id="lives" aria-label="3 lives remaining"></div></div>
+          <div class="panel-body">
+            <h1 id="turnHeading">Ready?</h1>
+            <p id="turnDescription">Pass the screen to the Tipster.</p>
+            <div id="turnContent"></div>
+          </div>
+        </aside>
+      </main>
+    </div>
+    <dialog id="confirmDialog"><form method="dialog"><h2>Start a new game?</h2><p>Current circle will be cleared.</p><div class="dialog-actions"><button class="button quiet" value="cancel">Keep playing</button><button class="button primary" value="confirm">New game</button></div></form></dialog>
+  </body>
+</html>
