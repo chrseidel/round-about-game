@@ -7,12 +7,14 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "node --test game.test.cjs",
+    "test": "node --test game.test.cjs && node --import tsx --test game/rules.test.ts",
     "typecheck": "tsc --noEmit",
-    "format:check": "prettier --check \"web/**/*.{ts,js}\" \"*.json\"",
+    "format:check": "prettier --check \"{web,game}/**/*.{ts,js}\" \"*.json\"",
     "check": "npm run format:check && npm run typecheck && npm test && npm run build"
   },
   "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsx": "^4.20.0",
     "esbuild": "^0.25.0",
     "prettier": "^3.6.2",
     "typescript": "^5.9.3",

@@ -6,8 +6,9 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "allowJs": true,
+    "allowImportingTsExtensions": true,
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["web/**/*.ts", "app.js"]
+  "include": ["web/**/*.ts", "game/**/*.ts"]
 }

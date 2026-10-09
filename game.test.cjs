@@ -94,7 +94,7 @@ test('third lost life enters overtime; fourth mistake loses', () => {
 
 test('no clue after grace discards card and replaces it in pile', () => {
   const { state, run } = game();
-  Object.assign(state, { current: 83, pile: 11, phase: 'grace', lives: 1 });
+  Object.assign(state, { current: 83, pile: 11, phase: 'grace', lives: 1, deadline: Date.now() - 1 });
   run('discardCard()');
   assert.equal(state.pile, 12);
   assert.equal(state.cards.length, 3);
@@ -115,7 +115,7 @@ test('correct final placement wins even in overtime', () => {
 
 test('running out of overtime discussion counts as wrong placement', () => {
   const { state, run } = game();
-  Object.assign(state, { lives: 0, current: 83, clue: 'sweet', selectedGap: 2, phase: 'guess' });
+  Object.assign(state, { lives: 0, current: 83, clue: 'sweet', selectedGap: 2, phase: 'guess', deadline: Date.now() - 1 });
   run('onDiscussionTimeUp()');
   assert.equal(state.lastResult.timedOut, true);
   assert.equal(state.lastResult.lost, true);
@@ -147,7 +147,7 @@ test('invalid clue explains what to fix', () => {
 
 test('tipster can send valid clue before countdown expires', () => {
   const { state, run } = game();
-  Object.assign(state, { phase: 'tip', current: 83, clue: 'sweet', seconds: 16, timer: 1 });
+  Object.assign(state, { phase: 'tip', current: 83, clue: 'sweet', seconds: 16, timer: 1, deadline: Date.now() + 16000 });
   run('submitClue()');
   assert.equal(state.phase, 'handoff');
   assert.equal(state.timer, null);
@@ -156,7 +156,7 @@ test('tipster can send valid clue before countdown expires', () => {
 
 test('typed clue needs explicit submission before grace ends', () => {
   const { state, run } = game();
-  Object.assign(state, { phase: 'tip', current: 83, clue: 'sweet' });
+  Object.assign(state, { phase: 'tip', current: 83, clue: 'sweet', deadline: Date.now() - 1 });
   run('onClueTimeUp()');
   assert.equal(state.phase, 'grace');
   assert.equal(state.seconds, 3);
@@ -167,7 +167,7 @@ test('typed clue needs explicit submission before grace ends', () => {
 
 test('unsubmitted valid clue is discarded after grace', () => {
   const { state, run } = game();
-  Object.assign(state, { phase: 'tip', current: 83, clue: 'sweet', pile: 11 });
+  Object.assign(state, { phase: 'tip', current: 83, clue: 'sweet', pile: 11, deadline: Date.now() - 3001 });
   run('onClueTimeUp()');
   run('discardCard()');
   assert.equal(state.phase, 'result');

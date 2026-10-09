@@ -1,5 +1,6 @@
 import { renderBoard } from './web/board.ts';
 import { renderPanel } from './web/panel.ts';
+import { createGame, apply, clueError as validateClue, CLUE_SECONDS, GRACE_SECONDS, DISCUSSION_SECONDS } from './game/rules.ts';
 
 const $ = (selector) => document.querySelector(selector);
 const STARTING_WORDS = [
@@ -7,16 +8,7 @@ const STARTING_WORDS = [
   'Puddle', 'Orbit', 'Cinnamon', 'Feather', 'Midnight', 'Puzzle', 'Kite', 'Garden',
   'Echo', 'Blanket', 'Spark', 'Ocean', 'Dancing', 'Curious', 'Wild', 'Golden',
 ];
-const PILE_SIZE = 12;
-const CLUE_SECONDS = 20;
-const GRACE_SECONDS = 3;
-const DISCUSSION_SECONDS = 20;
-
-const state = {
-  cards: [], deck: [], pile: 12, lives: 3, turn: 1, current: null,
-  phase: 'ready', selectedGap: null, clue: '', seconds: 20, timer: null,
-  deadline: null, lastResult: null, recent: null, discarded: 0,
-};
+const state = { ...createGame(shuffle(STARTING_WORDS).slice(0, 3), shuffle(Array.from({ length: 99 }, (_, i) => i + 1).filter((number) => number !== 33 && number !== 66))), seconds: CLUE_SECONDS, timer: null };
 
 function shuffle(items) {
   const result = [...items];
@@ -34,27 +26,12 @@ function stopTimer() {
 
 function startGame() {
   stopTimer();
-  const [first, second, third] = shuffle(STARTING_WORDS);
-  Object.assign(state, {
-    cards: [{ number: 0, word: first }, { number: 33, word: second }, { number: 66, word: third }],
-    deck: shuffle(Array.from({ length: 99 }, (_, i) => i + 1).filter((number) => number !== 33 && number !== 66)),
-    pile: PILE_SIZE, lives: 3, turn: 1, current: null, phase: 'ready',
-    selectedGap: null, clue: '', seconds: CLUE_SECONDS, deadline: null,
-    lastResult: null, recent: null, discarded: 0,
-  });
+  Object.assign(state, createGame(shuffle(STARTING_WORDS).slice(0, 3), shuffle(Array.from({ length: 99 }, (_, i) => i + 1).filter((number) => number !== 33 && number !== 66))), { seconds: CLUE_SECONDS });
   render();
 }
 
 function clueError() {
-  const clue = state.clue.trim();
-  if (!clue) return 'Enter a clue word.';
-  const oneWord = /^\p{L}+(?:['’\-]\p{L}+)*$/u.test(clue);
-  const properName = /^\p{Lu}[\p{L}'’-]*(?:\s+\p{Lu}[\p{L}'’-]*)+$/u.test(clue);
-  if (!oneWord && !properName) return 'Use one word (or a capitalized proper name). No numbers or symbols.';
-  if (state.cards.some((card) => card.word.toLowerCase() === clue.toLowerCase())) {
-    return 'That word is already in the circle. Choose another.';
-  }
-  return '';
+  return validateClue(state.clue, state.cards);
 }
 
 function validClue() {
@@ -63,11 +40,8 @@ function validClue() {
 
 function drawCard() {
   if (state.phase !== 'ready' || !state.deck.length) return;
-  if (state.pile > 0) state.pile--;
-  state.current = state.deck.pop();
-  state.clue = '';
+  Object.assign(state, apply(state, { type: 'DRAW' }, Date.now()));
   state.seconds = CLUE_SECONDS;
-  state.phase = 'tip';
   render();
   runTimer(CLUE_SECONDS, onClueTimeUp);
 }
@@ -75,7 +49,6 @@ function drawCard() {
 function runTimer(duration, onFinish) {
   stopTimer();
   state.seconds = duration;
-  state.deadline = Date.now() + duration * 1000;
   const tick = () => {
     state.seconds = Math.max(0, Math.ceil((state.deadline - Date.now()) / 1000));
     const display = $('#timerValue');
@@ -93,7 +66,7 @@ function runTimer(duration, onFinish) {
 
 function onClueTimeUp() {
   if (state.phase !== 'tip') return;
-  state.phase = 'grace';
+  Object.assign(state, apply(state, { type: 'CLUE_TIMEOUT' }, Math.max(Date.now(), state.deadline)));
   state.seconds = GRACE_SECONDS;
   render();
   runTimer(GRACE_SECONDS, () => {
@@ -103,13 +76,7 @@ function onClueTimeUp() {
 
 function discardCard() {
   stopTimer();
-  state.discarded++;
-  const lost = state.lives === 0;
-  state.lives--;
-  state.pile++;
-  state.lastResult = { discarded: true, lost, correct: false };
-  state.current = null;
-  state.phase = 'result';
+  Object.assign(state, apply(state, { type: 'GRACE_TIMEOUT' }, Math.max(Date.now(), state.deadline ?? 0)));
   render();
 }
 
@@ -119,7 +86,7 @@ function submitClue() {
     return;
   }
   stopTimer();
-  state.phase = 'handoff';
+  Object.assign(state, apply(state, { type: 'SUBMIT_CLUE', clue: state.clue }, Date.now()));
   render();
 }
 
@@ -134,7 +101,7 @@ function showClueError() {
 
 function beginGuess() {
   if (state.phase !== 'handoff') return;
-  state.phase = 'guess';
+  Object.assign(state, apply(state, { type: 'BEGIN_GUESS' }, Date.now()));
   render();
   if (state.lives === 0) runTimer(DISCUSSION_SECONDS, onDiscussionTimeUp);
 }
@@ -147,43 +114,20 @@ function onDiscussionTimeUp() {
 
 function selectGap(index) {
   if (state.phase !== 'guess') return;
-  state.selectedGap = index;
+  Object.assign(state, apply(state, { type: 'SELECT_GAP', index }, Date.now()));
   render();
 }
 
 function submitGuess(timedOut = false) {
   if (state.phase !== 'guess' || (state.selectedGap === null && !timedOut)) return;
   stopTimer();
-  const insertion = state.cards.findIndex((card) => card.number > state.current);
-  const target = insertion === -1 ? state.cards.length : insertion;
-  const gap = (target - 1 + state.cards.length) % state.cards.length;
-  const lower = state.cards[gap];
-  const upper = state.cards[(gap + 1) % state.cards.length];
-  const correct = !timedOut && state.selectedGap === gap;
-  const lost = !correct && state.lives === 0;
-  state.lastResult = { correct, lower, upper, timedOut, lost, discarded: false };
-  state.cards.splice(target, 0, { number: state.current, word: state.clue.trim() });
-  state.recent = state.current;
-  if (!correct) state.lives--;
-  state.selectedGap = null;
-  state.phase = 'result';
+  Object.assign(state, apply(state, { type: timedOut ? 'DISCUSSION_TIMEOUT' : 'LOCK_GAP' }, timedOut ? Math.max(Date.now(), state.deadline ?? 0) : Date.now()));
   render();
 }
 
 function nextTurn() {
   if (state.phase !== 'result') return;
-  const { correct, lost } = state.lastResult;
-  if (lost || (correct && state.pile === 0)) {
-    state.phase = 'finished';
-  } else if (state.deck.length === 0) {
-    state.phase = 'finished';
-  } else {
-    state.turn++;
-    state.current = null;
-    state.clue = '';
-    state.selectedGap = null;
-    state.phase = 'ready';
-  }
+  Object.assign(state, apply(state, { type: 'NEXT_TURN' }, Date.now()));
   render();
 }
 
