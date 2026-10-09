@@ -8,6 +8,7 @@ export type Result = {
   timedOut: boolean;
   lower?: Card;
   upper?: Card;
+  guessedGap?: number;
 };
 export type Game = {
   cards: Card[];
@@ -185,6 +186,7 @@ export function apply(game: Game, command: Command, now: number): Game {
         discarded: false,
         timedOut,
         lost: !correct && state.lives === 0,
+        guessedGap: state.selectedGap ?? undefined,
         lower: state.cards[gap],
         upper: state.cards[(gap + 1) % state.cards.length],
       };

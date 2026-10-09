@@ -7,9 +7,9 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "node --test game.test.cjs && node --import tsx --test game/rules.test.ts",
+    "test": "node --test game.test.cjs && node --import tsx --test game/rules.test.ts shared/protocol.test.ts",
     "typecheck": "tsc --noEmit",
-    "format:check": "prettier --check \"{web,game}/**/*.{ts,js}\" \"*.json\"",
+    "format:check": "prettier --check \"{web,game,shared}/**/*.{ts,js}\" \"*.json\"",
     "check": "npm run format:check && npm run typecheck && npm test && npm run build"
   },
   "devDependencies": {
