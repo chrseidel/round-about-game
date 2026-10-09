@@ -9,14 +9,19 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "node --test game.test.cjs && node --import tsx --test game/rules.test.ts shared/protocol.test.ts",
     "typecheck": "tsc --noEmit",
-    "format:check": "prettier --check \"{web,game,shared}/**/*.{ts,js}\" \"*.json\"",
+    "format:check": "prettier --check \"{web,game,shared,amplify}/**/*.{ts,js}\" \"*.json\"",
     "check": "npm run format:check && npm run typecheck && npm test && npm run build"
   },
   "devDependencies": {
+    "@aws-amplify/backend": "^1.25.1",
+    "@aws-amplify/backend-cli": "^1.10.0",
+    "@types/aws-lambda": "^8.10.164",
     "@types/node": "^22.15.0",
-    "tsx": "^4.20.0",
+    "aws-cdk-lib": "^2.273.0",
+    "constructs": "^10.8.1",
     "esbuild": "^0.25.0",
     "prettier": "^3.6.2",
+    "tsx": "^4.20.0",
     "typescript": "^5.9.3",
     "vite": "^6.4.4"
   }

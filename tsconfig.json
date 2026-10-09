@@ -10,5 +10,10 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["web/**/*.ts", "game/**/*.ts", "shared/**/*.ts"]
+  "include": [
+    "web/**/*.ts",
+    "game/**/*.ts",
+    "shared/**/*.ts",
+    "amplify/**/*.ts"
+  ]
 }
