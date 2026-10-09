@@ -12,7 +12,7 @@ import {
   CfnApi,
   CfnChannelNamespace,
 } from "aws-cdk-lib/aws-appsync";
-import { ServicePrincipal } from "aws-cdk-lib/aws-iam";
+import { PolicyStatement, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 import { CfnFunction } from "aws-cdk-lib/aws-lambda";
 import { gameApi } from "./functions/game-api/resource.js";
 import { eventAuth } from "./functions/event-auth/resource.js";
@@ -27,9 +27,16 @@ const sessions = new Table(stack, "Sessions", {
   removalPolicy: RemovalPolicy.RETAIN,
 });
 sessions.grantReadWriteData(backend.gameApi.resources.lambda);
+sessions.grantReadData(backend.eventAuth.resources.lambda);
 const gameFunction = backend.gameApi.resources.lambda.node
   .defaultChild as CfnFunction;
 gameFunction.addPropertyOverride(
+  "Environment.Variables.SESSION_TABLE",
+  sessions.tableName,
+);
+const authorizerFunction = backend.eventAuth.resources.lambda.node
+  .defaultChild as CfnFunction;
+authorizerFunction.addPropertyOverride(
   "Environment.Variables.SESSION_TABLE",
   sessions.tableName,
 );
@@ -92,6 +99,16 @@ const events = new CfnApi(stack, "GameEvents", {
     defaultPublishAuthModes: [{ authType: AuthorizationType.IAM }],
   },
 });
+backend.gameApi.resources.lambda.addToRolePolicy(
+  new PolicyStatement({
+    actions: ["appsync:EventPublish"],
+    resources: [`${events.attrApiArn}/channelNamespace/games`],
+  }),
+);
+gameFunction.addPropertyOverride(
+  "Environment.Variables.EVENTS_URL",
+  `https://${events.getAtt("Dns.Http").toString()}/event`,
+);
 backend.eventAuth.resources.lambda.addPermission("AppSyncAuthorize", {
   principal: new ServicePrincipal("appsync.amazonaws.com"),
   sourceArn: events.attrApiArn,
