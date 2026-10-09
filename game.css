@@ -110,3 +110,9 @@ dialog p { color: #889889; font-size: 12px; margin: 0; }
   .ring-card.compact .ring-word { font-size: 6px; }
   .ring-gap { width: 18px; height: 18px; font-size: 14px; }
 }
+:root .session-entry:not([hidden]) { position: fixed; inset: 0; z-index: 10; background: #f7f5f0; display: grid; place-items: center; padding: 20px; }
+.session-entry form { display: grid; gap: 16px; width: min(360px, 100%); }
+.session-entry label { display: grid; gap: 6px; }
+.session-entry input { padding: 10px; border: 1px solid #bdcbbd; }
+.session-actions { display: flex; gap: 10px; }
+.session-actions button { padding: 10px; flex: 1; }

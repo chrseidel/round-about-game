@@ -13,6 +13,7 @@ import {
   CfnChannelNamespace,
 } from "aws-cdk-lib/aws-appsync";
 import { ServicePrincipal } from "aws-cdk-lib/aws-iam";
+import { CfnFunction } from "aws-cdk-lib/aws-lambda";
 import { gameApi } from "./functions/game-api/resource.js";
 import { eventAuth } from "./functions/event-auth/resource.js";
 
@@ -26,11 +27,17 @@ const sessions = new Table(stack, "Sessions", {
   removalPolicy: RemovalPolicy.RETAIN,
 });
 sessions.grantReadWriteData(backend.gameApi.resources.lambda);
+const gameFunction = backend.gameApi.resources.lambda.node
+  .defaultChild as CfnFunction;
+gameFunction.addPropertyOverride(
+  "Environment.Variables.SESSION_TABLE",
+  sessions.tableName,
+);
 
 const api = new HttpApi(stack, "GameHttpApi", {
   corsPreflight: {
     // Replace with the Amplify Hosting domain during the production deployment.
-    allowOrigins: ["http://localhost:5173"],
+    allowOrigins: ["http://localhost:5173", "http://127.0.0.1:5173"],
     allowMethods: [CorsHttpMethod.GET, CorsHttpMethod.POST],
     allowHeaders: ["content-type", "authorization"],
   },
@@ -40,6 +47,30 @@ api.addRoutes({
   methods: [HttpMethod.GET],
   integration: new HttpLambdaIntegration(
     "GameApiIntegration",
+    backend.gameApi.resources.lambda,
+  ),
+});
+api.addRoutes({
+  path: "/sessions",
+  methods: [HttpMethod.POST],
+  integration: new HttpLambdaIntegration(
+    "HostSessionIntegration",
+    backend.gameApi.resources.lambda,
+  ),
+});
+api.addRoutes({
+  path: "/sessions/{squid}/participants",
+  methods: [HttpMethod.POST],
+  integration: new HttpLambdaIntegration(
+    "JoinSessionIntegration",
+    backend.gameApi.resources.lambda,
+  ),
+});
+api.addRoutes({
+  path: "/sessions/{squid}",
+  methods: [HttpMethod.GET],
+  integration: new HttpLambdaIntegration(
+    "ReadSessionIntegration",
     backend.gameApi.resources.lambda,
   ),
 });

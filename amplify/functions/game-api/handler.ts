@@ -1,15 +1,176 @@
-import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
+import type {
+  APIGatewayProxyHandlerV2,
+  APIGatewayProxyStructuredResultV2,
+} from "aws-lambda";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import {
+  DynamoDBDocumentClient,
+  GetCommand,
+  PutCommand,
+} from "@aws-sdk/lib-dynamodb";
+import { projectCaller, type Session } from "../../../shared/protocol.ts";
+import {
+  authenticate,
+  joinSession,
+  newSession,
+  nickname,
+  normalizeSquid,
+} from "./session.ts";
+
+const db = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+const table = process.env.SESSION_TABLE;
+
+function response(
+  statusCode: number,
+  body: object,
+): APIGatewayProxyStructuredResultV2 {
+  return {
+    statusCode,
+    headers: {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+    },
+    body: JSON.stringify(body),
+  };
+}
+
+function input(event: Parameters<APIGatewayProxyHandlerV2>[0]): unknown {
+  if (!event.body || event.body.length > 1024)
+    throw new Error("Invalid request.");
+  try {
+    return JSON.parse(event.body);
+  } catch {
+    throw new Error("Invalid JSON.");
+  }
+}
+
+function inputNickname(value: unknown): string {
+  if (!value || typeof value !== "object") throw new Error("Enter a nickname.");
+  return nickname((value as { nickname?: unknown }).nickname);
+}
+
+async function load(squid: string): Promise<Session | null> {
+  const result = await db.send(
+    new GetCommand({ TableName: table, Key: { squid }, ConsistentRead: true }),
+  );
+  const session = result.Item as Session | undefined;
+  return session && session.expiresAt > Math.floor(Date.now() / 1000)
+    ? session
+    : null;
+}
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
-  if (
-    event.requestContext.http.method === "GET" &&
-    event.rawPath === "/health"
-  ) {
-    return {
-      statusCode: 200,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status: "ok" }),
-    };
+  const method = event.requestContext.http.method;
+  const path = event.rawPath;
+  if (method === "GET" && path === "/health")
+    return response(200, { status: "ok" });
+  if (!table)
+    return response(503, {
+      code: "NOT_READY",
+      message: "Session storage unavailable.",
+    });
+
+  try {
+    if (method === "POST" && path === "/sessions") {
+      const name = inputNickname(input(event));
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const { session, participantId, credential } = newSession(
+          name,
+          Date.now(),
+        );
+        try {
+          await db.send(
+            new PutCommand({
+              TableName: table,
+              Item: session,
+              ConditionExpression: "attribute_not_exists(squid)",
+            }),
+          );
+          return response(201, {
+            participantId,
+            token: credential,
+            snapshot: projectCaller(session, participantId, Date.now()),
+          });
+        } catch (error) {
+          if ((error as Error).name !== "ConditionalCheckFailedException")
+            throw error;
+        }
+      }
+      return response(503, {
+        code: "UNAVAILABLE",
+        message: "Could not create a session.",
+      });
+    }
+
+    const route = /^\/sessions\/([^/]+)(\/participants)?$/.exec(path);
+    if (!route)
+      return response(404, { code: "NOT_FOUND", message: "Not found." });
+    const id = normalizeSquid(route[1]!);
+    const session = await load(id);
+    if (!session)
+      return response(404, {
+        code: "NOT_FOUND",
+        message: "Session not found.",
+      });
+    if (method === "POST" && route[2] === "/participants") {
+      const name = inputNickname(input(event));
+      const {
+        session: next,
+        participantId,
+        credential,
+        snapshot,
+      } = joinSession(session, name, Date.now());
+      try {
+        await db.send(
+          new PutCommand({
+            TableName: table,
+            Item: next,
+            ConditionExpression: "#version = :version",
+            ExpressionAttributeNames: { "#version": "version" },
+            ExpressionAttributeValues: { ":version": session.version },
+          }),
+        );
+      } catch (error) {
+        if ((error as Error).name === "ConditionalCheckFailedException")
+          return response(409, {
+            code: "STALE_VERSION",
+            message: "Session changed. Retry.",
+          });
+        throw error;
+      }
+      return response(201, { participantId, token: credential, snapshot });
+    }
+    if (method === "GET" && !route[2]) {
+      const credential = event.headers.authorization?.replace(
+        /^Bearer\s+/i,
+        "",
+      );
+      const participantId = authenticate(session, credential);
+      if (!participantId)
+        return response(401, {
+          code: "UNAUTHORIZED",
+          message: "Join this session first.",
+        });
+      return response(200, projectCaller(session, participantId, Date.now()));
+    }
+    return response(404, { code: "NOT_FOUND", message: "Not found." });
+  } catch (error) {
+    if (
+      error instanceof SyntaxError ||
+      (error instanceof Error &&
+        /^(Invalid|Enter|Nickname|Session (is full|expired))/.test(
+          error.message,
+        ))
+    ) {
+      return response(400, {
+        code: "INVALID_INPUT",
+        message: (error as Error).message,
+      });
+    }
+    console.error("Session request failed", (error as Error).name);
+    return response(500, {
+      code: "INTERNAL_ERROR",
+      message: "Something went wrong.",
+    });
   }
-  return { statusCode: 404, body: JSON.stringify({ code: "NOT_FOUND" }) };
 };

@@ -6,4 +6,5 @@ export const gameApi = defineFunction({
   entry: "./handler.ts",
   runtime: 22,
   timeoutSeconds: 10,
+  environment: { SESSION_TABLE: "" },
 });
