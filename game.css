@@ -116,3 +116,8 @@ dialog p { color: #889889; font-size: 12px; margin: 0; }
 .session-entry input { padding: 10px; border: 1px solid #bdcbbd; }
 .session-actions { display: flex; gap: 10px; }
 .session-actions button { padding: 10px; flex: 1; }
+.session-lobby { display: grid; gap: 10px; width: min(420px, 100%); }
+.session-lobby button { padding: 8px 10px; }
+.session-lobby button[hidden] { display: none; }
+#startHint, #connectionStatus { color: #6b766b; font-size: 0.9em; }
+#commandError { color: #a33; }

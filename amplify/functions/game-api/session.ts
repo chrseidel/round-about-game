@@ -141,3 +141,49 @@ export function authenticate(
     )?.id ?? null
   );
 }
+
+export class CommandError extends Error {
+  constructor(
+    readonly code: "FORBIDDEN" | "INVALID_PHASE" | "INVALID_INPUT",
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+/** First claim wins; a retry by the current Tipster changes nothing. */
+export function claimTipster(session: Session, participantId: string): Session {
+  if (session.tipsterId === participantId) return session;
+  if (session.status !== "lobby")
+    throw new CommandError("INVALID_PHASE", "The game has already started.");
+  if (session.tipsterId) {
+    const tipster = session.participants.find(
+      (participant) => participant.id === session.tipsterId,
+    );
+    throw new CommandError(
+      "INVALID_PHASE",
+      `${tipster?.nickname ?? "Someone"} is already the Tipster.`,
+    );
+  }
+  return { ...session, version: session.version + 1, tipsterId: participantId };
+}
+
+/** Host-only; a retry after a successful start changes nothing. */
+export function startGame(session: Session, participantId: string): Session {
+  if (participantId !== session.hostId)
+    throw new CommandError("FORBIDDEN", "Only the host can start the game.");
+  if (session.status === "playing") return session;
+  if (session.status !== "lobby")
+    throw new CommandError("INVALID_PHASE", "The game has already ended.");
+  if (!session.tipsterId)
+    throw new CommandError(
+      "INVALID_PHASE",
+      "Someone needs to be the Tipster first.",
+    );
+  if (session.participants.length < 2)
+    throw new CommandError(
+      "INVALID_PHASE",
+      "At least one Guesser needs to join first.",
+    );
+  return { ...session, version: session.version + 1, status: "playing" };
+}

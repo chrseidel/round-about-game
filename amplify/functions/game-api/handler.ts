@@ -9,8 +9,10 @@ import {
   PutCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { projectCaller, type Session } from "../../../shared/protocol.ts";
+import { applyCommand, parseCommandRequest } from "./command.ts";
 import {
   authenticate,
+  CommandError,
   joinSession,
   newSession,
   nickname,
@@ -59,6 +61,75 @@ async function load(squid: string): Promise<Session | null> {
     : null;
 }
 
+function bearer(event: Parameters<APIGatewayProxyHandlerV2>[0]) {
+  return event.headers.authorization?.replace(/^Bearer\s+/i, "");
+}
+
+const ERROR_STATUS = { FORBIDDEN: 403, INVALID_INPUT: 400, INVALID_PHASE: 409 };
+
+/**
+ * Applies a command to the latest state. A version conflict reloads and
+ * re-checks the rules, so of simultaneous claims exactly one is written.
+ */
+async function runCommand(
+  event: Parameters<APIGatewayProxyHandlerV2>[0],
+  loaded: Session,
+): Promise<APIGatewayProxyStructuredResultV2> {
+  const participantId = authenticate(loaded, bearer(event));
+  if (!participantId)
+    return response(401, {
+      code: "UNAUTHORIZED",
+      message: "Join this session first.",
+    });
+  let session = loaded;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    let next: Session;
+    try {
+      next = applyCommand(
+        session,
+        participantId,
+        parseCommandRequest(input(event)).command,
+      );
+    } catch (error) {
+      if (!(error instanceof CommandError)) throw error;
+      return response(ERROR_STATUS[error.code], {
+        code: error.code,
+        message: error.message,
+        snapshot: projectCaller(session, participantId, Date.now()),
+      });
+    }
+    if (next === session)
+      return response(200, projectCaller(session, participantId, Date.now()));
+    try {
+      await db.send(
+        new PutCommand({
+          TableName: table,
+          Item: next,
+          ConditionExpression: "#version = :version",
+          ExpressionAttributeNames: { "#version": "version" },
+          ExpressionAttributeValues: { ":version": session.version },
+        }),
+      );
+      return response(200, projectCaller(next, participantId, Date.now()));
+    } catch (error) {
+      if ((error as Error).name !== "ConditionalCheckFailedException")
+        throw error;
+    }
+    const reloaded = await load(session.squid);
+    if (!reloaded)
+      return response(404, {
+        code: "NOT_FOUND",
+        message: "Session not found.",
+      });
+    session = reloaded;
+  }
+  return response(409, {
+    code: "STALE_VERSION",
+    message: "Session changed. Retry.",
+    snapshot: projectCaller(session, participantId, Date.now()),
+  });
+}
+
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   const method = event.requestContext.http.method;
   const path = event.rawPath;
@@ -102,7 +173,9 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       });
     }
 
-    const route = /^\/sessions\/([^/]+)(\/participants)?$/.exec(path);
+    const route = /^\/sessions\/([^/]+)(\/participants|\/commands)?$/.exec(
+      path,
+    );
     if (!route)
       return response(404, { code: "NOT_FOUND", message: "Not found." });
     const id = normalizeSquid(route[1]!);
@@ -140,12 +213,10 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       }
       return response(201, { participantId, token: credential, snapshot });
     }
+    if (method === "POST" && route[2] === "/commands")
+      return await runCommand(event, session);
     if (method === "GET" && !route[2]) {
-      const credential = event.headers.authorization?.replace(
-        /^Bearer\s+/i,
-        "",
-      );
-      const participantId = authenticate(session, credential);
+      const participantId = authenticate(session, bearer(event));
       if (!participantId)
         return response(401, {
           code: "UNAUTHORIZED",

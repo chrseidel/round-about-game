@@ -7,6 +7,8 @@ import {
   storedParticipant,
 } from "./session-api.ts";
 import { GameEvents } from "./events.ts";
+import { LOBBY_HTML, lobbyView, renderLobby } from "./lobby.ts";
+import type { PublicSnapshot, SessionCommand } from "../shared/protocol.ts";
 
 // Keep the local prototype usable until the multiplayer board is wired up.
 async function setupSessionEntry() {
@@ -34,18 +36,24 @@ async function setupSessionEntry() {
     : "";
   const saved = squid && storedParticipant(squid);
   const nickname = localStorage.getItem("round-about:nickname") ?? "";
-  const showLobby = (code: string, token: string) => {
-    entry.innerHTML =
-      '<div class="session-lobby"><h1>Round About</h1><p>Invite: <strong id="inviteCode"></strong></p><p id="lobbyPlayers"></p><p id="connectionStatus">Connecting…</p></div>';
-    entry.querySelector<HTMLElement>("#inviteCode")!.textContent = code;
-    const status = entry.querySelector<HTMLElement>("#connectionStatus")!;
+  const showLobby = (
+    code: string,
+    seat: { participantId: string; token: string },
+  ) => {
+    entry.innerHTML = LOBBY_HTML;
+    const find = (id: string) => entry.querySelector<HTMLElement>(`#${id}`)!;
+    find("inviteCode").textContent = code;
+    const status = find("connectionStatus");
+    let latest: PublicSnapshot | null = null;
+    const render = () =>
+      latest && renderLobby(entry, lobbyView(latest, seat.participantId));
     const events = new GameEvents(
-      { endpoint: eventsEndpoint!, squid: code, token },
+      { endpoint: eventsEndpoint!, squid: code, token: seat.token },
       (snapshot) => {
-        entry.querySelector<HTMLElement>("#lobbyPlayers")!.textContent =
-          snapshot.participants.map((player) => player.nickname).join(", ");
+        latest = snapshot;
+        render();
       },
-      () => api.snapshot(code, token),
+      () => api.snapshot(code, seat.token),
       (connected) => {
         status.textContent = connected ? "Connected" : "Reconnecting…";
       },
@@ -54,6 +62,37 @@ async function setupSessionEntry() {
         status.textContent = "This session has ended.";
       },
     );
+    const send = async (button: HTMLButtonElement, command: SessionCommand) => {
+      if (!latest) return;
+      const error = find("commandError");
+      error.textContent = "";
+      button.disabled = true;
+      try {
+        events.apply(await api.command(code, seat.token, command, latest));
+      } catch (failure) {
+        error.textContent = (failure as Error).message;
+        const snapshot = (failure as { snapshot?: PublicSnapshot }).snapshot;
+        if (snapshot) events.apply(snapshot);
+      } finally {
+        button.disabled = false;
+        render();
+      }
+    };
+    const claim = find("claimTipster") as HTMLButtonElement;
+    const start = find("startGame") as HTMLButtonElement;
+    claim.addEventListener("click", () =>
+      send(claim, { type: "CLAIM_TIPSTER" }),
+    );
+    start.addEventListener("click", () => send(start, { type: "START" }));
+    find("copyInvite").addEventListener("click", async () => {
+      const link = `${location.origin}/s/${code}`;
+      try {
+        await navigator.clipboard.writeText(link);
+        find("copyInvite").textContent = "Copied";
+      } catch {
+        find("inviteCode").textContent = link;
+      }
+    });
     if (eventsEndpoint) void events.connect();
     else status.textContent = "Live updates are not configured.";
   };
@@ -63,7 +102,7 @@ async function setupSessionEntry() {
   if (saved) {
     try {
       await api.snapshot(squid, saved.token);
-      showLobby(squid, saved.token);
+      showLobby(squid, saved);
       return;
     } catch {
       sessionStorage.removeItem(`round-about:${squid}`);
@@ -93,7 +132,7 @@ async function setupSessionEntry() {
         localStorage.setItem("round-about:nickname", name);
         rememberParticipant(grant.snapshot.squid, grant);
         history.replaceState(null, "", `/s/${grant.snapshot.squid}`);
-        showLobby(grant.snapshot.squid, grant.token);
+        showLobby(grant.snapshot.squid, grant);
       } catch (error) {
         message.textContent = (error as Error).message;
       }

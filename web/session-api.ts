@@ -1,4 +1,11 @@
-import type { CallerSnapshot, ParticipantGrant } from "../shared/protocol.ts";
+import {
+  PROTOCOL_VERSION,
+  type CallerSnapshot,
+  type CommandRequest,
+  type ParticipantGrant,
+  type PublicSnapshot,
+  type SessionCommand,
+} from "../shared/protocol.ts";
 
 export type ApiConfig = { gameApiUrl: string };
 
@@ -45,6 +52,8 @@ export class SessionApi {
         new Error(data.message ?? "Session request failed."),
         {
           status: response.status,
+          code: data.code as string | undefined,
+          snapshot: data.snapshot as CallerSnapshot | undefined,
         },
       );
     return data as T;
@@ -74,6 +83,32 @@ export class SessionApi {
       `/sessions/${encodeURIComponent(squid)}`,
       {
         headers: { authorization: `Bearer ${token}` },
+      },
+    );
+  }
+
+  command(
+    squid: string,
+    token: string,
+    command: SessionCommand,
+    latest: PublicSnapshot,
+  ) {
+    const body: CommandRequest = {
+      protocolVersion: PROTOCOL_VERSION,
+      turnId: latest.turnId,
+      commandId: crypto.randomUUID(),
+      expectedVersion: latest.version,
+      command,
+    };
+    return this.request<CallerSnapshot>(
+      `/sessions/${encodeURIComponent(squid)}/commands`,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(body),
       },
     );
   }

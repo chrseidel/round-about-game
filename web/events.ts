@@ -106,13 +106,13 @@ export class GameEvents {
           continue;
         if (update.snapshot.version <= this.version) continue;
         if (update.snapshot.version > this.version + 1) await this.refresh();
-        if (update.snapshot.version > this.version)
-          this.accept(update.snapshot);
+        if (update.snapshot.version > this.version) this.apply(update.snapshot);
       }
     }
   }
 
-  private accept(snapshot: PublicSnapshot) {
+  /** Shows a snapshot unless a newer version is already displayed. */
+  apply(snapshot: PublicSnapshot) {
     if (snapshot.version <= this.version) return;
     this.version = snapshot.version;
     this.onUpdate(snapshot);
@@ -120,7 +120,7 @@ export class GameEvents {
 
   private async refresh() {
     try {
-      this.accept(await this.catchUp());
+      this.apply(await this.catchUp());
     } catch {
       this.onStatus(false);
     }
@@ -134,7 +134,7 @@ export class GameEvents {
     // otherwise treat it as a transient authorizer failure and keep retrying.
     if (this.rejected) {
       try {
-        this.accept(await this.catchUp());
+        this.apply(await this.catchUp());
       } catch (error) {
         if ([401, 404].includes((error as { status?: number }).status ?? 0)) {
           this.close();

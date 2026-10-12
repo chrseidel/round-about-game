@@ -86,6 +86,14 @@ api.addRoutes({
   ),
 });
 api.addRoutes({
+  path: "/sessions/{squid}/commands",
+  methods: [HttpMethod.POST],
+  integration: new HttpLambdaIntegration(
+    "CommandIntegration",
+    backend.gameApi.resources.lambda,
+  ),
+});
+api.addRoutes({
   path: "/sessions/{squid}",
   methods: [HttpMethod.GET],
   integration: new HttpLambdaIntegration(
