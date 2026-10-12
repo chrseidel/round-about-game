@@ -36,7 +36,7 @@ Work through tasks in order; commit each after verification. Design references: 
 
 ## 4. Add PR verification in GitHub
 
-**Status:** Workflow committed in `6c3a4b0`; it runs on GitHub since 2026-10-12 (the first run exposed a broken lockfile, fixed in `3668a0e`). Branch protection is **not available** for a private repository on GitHub Free: decide between making the repo public, GitHub Pro, or accepting that direct pushes to `main` are not blocked. Resolve before production deployment (Task 16).
+**Status:** Workflow committed in `6c3a4b0`; it runs on GitHub since 2026-10-12 (the first run exposed a broken lockfile, fixed in `3668a0e`). Branch protection is **not available** for a private repository on GitHub Free. Decision 2026-10-12: accept the gap for now (CI still runs on every push and PR); revisit before production deployment (Task 16).
 
 **Context:** `main` will auto-deploy when changes land. Bad PRs must fail before merge.
 
@@ -156,7 +156,7 @@ Work through tasks in order; commit each after verification. Design references: 
 
 ## 16. Configure automatic GitHub `main` deployment
 
-**Status:** Pending. Requires the branch-protection decision from Task 4.
+**Status:** Pending. Revisit the branch-protection gap from Task 4 first.
 
 **Context:** After dev flow passes, production should update when a PR is merged to `main`, using Amplify as only deploy trigger.
 
