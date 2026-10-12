@@ -1,12 +1,12 @@
 # Development handoff
 
-Read [TASKS.md](TASKS.md) for ordered work and acceptance criteria; [ARCHITECTURE.md](ARCHITECTURE.md) and [INFRASTRUCTURE.md](INFRASTRUCTURE.md) describe intended multiplayer behavior and deployment. **As of 2026-10-12: Tasks 1–8 are committed separately; Task 9 is next. There is no playable multiplayer deployment.** Do not treat a successful local build as completion of a task.
+Read [TASKS.md](TASKS.md) for ordered work and acceptance criteria; [ARCHITECTURE.md](ARCHITECTURE.md) and [INFRASTRUCTURE.md](INFRASTRUCTURE.md) describe intended multiplayer behavior and deployment. **As of 2026-10-12: Tasks 1–9 are committed separately; Task 10 is next. There is no playable multiplayer deployment.** Do not treat a successful local build as completion of a task.
 
 ## Resume here
 
 1. Inspect `git status`, `git diff`, and recent commits before changing anything. Stage only the files of the current task; keep documentation changes in their own commit.
 2. The sandbox `round-about-dev` was deployed on 2026-10-12 after the rename and verified with `scripts/check-events.ts`; the old `one-round-dev` sandbox and its log groups were deleted. `amplify/backend.ts` is the single source of truth: redeploy with `AWS_PROFILE=chreisel npx ampx sandbox --once --identifier round-about-dev` after backend changes, before testing against AWS. Amplify sandboxes delete the session table with the stack despite `RemovalPolicy.RETAIN`; confirm production keeps it in Task 16. On 2026-10-09 a deploy from an uncommitted tree left a throwaway `POST /dev-publish/{squid}` route live until 2026-10-12.
-3. Continue Tasks 9–16 **one at a time**, verify each against its acceptance criteria, and create one commit after each task. Task 4's GitHub branch protection remains outstanding despite its workflow commit; verify it before production deployment.
+3. Continue Tasks 10–16 **one at a time**, verify each against its acceptance criteria, and create one commit after each task. Task 4's GitHub branch protection remains outstanding despite its workflow commit; verify it before production deployment.
 
 ## Environment and deployment state
 
@@ -22,3 +22,11 @@ Read [TASKS.md](TASKS.md) for ordered work and acceptance criteria; [ARCHITECTUR
 - **Browser (2026-10-12):** `web/events.ts` stops reconnecting only when a rejected subscription is confirmed by a 401/404 from `GET /sessions/{squid}`; other rejections keep retrying. `close()` exists but nothing calls it yet, because there is no leave/new-session action until Task 14. The lobby shows when live updates are not configured. Covered by `web/events.test.ts` (fake WebSocket) and the 2026-10-12 browser test; the "session ended" path is unit-tested only.
 - The game API's CORS list currently includes only local development origins. Amplify Hosting production origin, SPA rewrite for `/s/{squid}`, and generated frontend endpoint configuration are Task 16 work. `vite.config.ts` serves ignored `amplify_outputs.json` only in the local dev server; production build must get branch-specific outputs when hosting is implemented.
 - `shared/protocol.ts` includes a pending-reveal public payload; its scheduled display is **UX timing**, not secrecy. Never send `currentDraw` or future deck on public AppSync events. Browser-selected gap must not reset the server deadline. The fixed Tipster and two-click shared Guesser selection are documented in `ARCHITECTURE.md`, not implemented in backend yet.
+
+## Lobby and commands notes (Task 9)
+
+- `POST /sessions/{squid}/commands` is the command endpoint for later tasks: add a case to `applyCommand` in `amplify/functions/game-api/command.ts` and a pure rule in `session.ts`. The handler retries a conditional write up to 3 times, re-checking rules on the reloaded session.
+- That retry path has **not** run against AWS: DynamoDB recorded no conditional-check failures in any test, because requests were serialized by Lambda/DynamoDB latency. It has no automated test either (the DynamoDB client in `handler.ts` is not injectable). The conditional write alone guarantees one Tipster.
+- **Lambda concurrency limit is 10** for the whole account in `eu-central-1` (new-account default). Five parallel test sessions caused one throttled request, which the API answered with 503 "Service Unavailable". A real game start with many players plus authorizer and publisher invocations could hit it. Request an increase via Service Quotas ("Concurrent executions") before production; this is an account change for the owner to make.
+- Deferred minors: the lobby renders only after the WebSocket subscribes (~0.5 s), though join/reload already return a snapshot; without an events endpoint it stays empty.
+

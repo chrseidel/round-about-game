@@ -2,7 +2,7 @@
 
 Work through tasks in order; commit each after verification. Design references: [ARCHITECTURE.md](ARCHITECTURE.md) and [INFRASTRUCTURE.md](INFRASTRUCTURE.md).
 
-**Current state:** Tasks 1–8 have separate commits. Vite app and tests work locally; an Amplify sandbox runs in `eu-central-1` using `AWS_PROFILE=chreisel`. Guest host/join and per-room AppSync authorization were exercised in the sandbox. This is **not a deployed playable multiplayer game**. Tasks 9–16 are pending. The GitHub repository is `chrseidel/round-about-game` (private), `origin` is `git@github.com:chrseidel/round-about-game.git`, and the Check workflow runs on pushes and PRs to `main`. Do not commit `amplify_outputs.json` or `.amplify/`.
+**Current state:** Tasks 1–9 have separate commits. Vite app and tests work locally; an Amplify sandbox runs in `eu-central-1` using `AWS_PROFILE=chreisel`. Guest host/join and per-room AppSync authorization were exercised in the sandbox. This is **not a deployed playable multiplayer game**. Tasks 10–16 are pending. The GitHub repository is `chrseidel/round-about-game` (private), `origin` is `git@github.com:chrseidel/round-about-game.git`, and the Check workflow runs on pushes and PRs to `main`. Do not commit `amplify_outputs.json` or `.amplify/`.
 
 ## 1. Establish maintainable project tooling
 
@@ -86,7 +86,7 @@ Work through tasks in order; commit each after verification. Design references: 
 
 ## 9. Build lobby, first-claim Tipster, and start
 
-**Status:** Pending.
+**Status:** Completed; `d390aa6`. Design: [docs/superpowers/specs/2026-10-12-task-9-lobby-design.md](docs/superpowers/specs/2026-10-12-task-9-lobby-design.md). Verified 2026-10-12 with `scripts/check-lobby.ts` (always exactly one winning claim) and a three-tab browser test with a real claim race.
 
 **Context:** First lobby participant to claim Tipster keeps role for full game; others are Guessers. Host cannot start alone or without Tipster.
 
