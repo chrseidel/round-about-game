@@ -41,7 +41,12 @@ export class SessionApi {
     const response = await fetch(`${this.base}${path}`, init);
     const data = await response.json();
     if (!response.ok)
-      throw new Error(data.message ?? "Session request failed.");
+      throw Object.assign(
+        new Error(data.message ?? "Session request failed."),
+        {
+          status: response.status,
+        },
+      );
     return data as T;
   }
 

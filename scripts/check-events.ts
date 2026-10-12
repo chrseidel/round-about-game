@@ -97,27 +97,19 @@ async function receiveEvent(
           }),
         );
       if (message.type === "subscribe_success") {
+        // A real committed write; the table stream must publish it.
         const response = await fetch(
-          new URL(`/sessions/${squid}/commands`, apiUrl),
+          new URL(`/sessions/${squid}/participants`, apiUrl),
           {
             method: "POST",
-            headers: {
-              authorization: `Bearer ${token}`,
-              "content-type": "application/json",
-            },
-            body: JSON.stringify({
-              protocolVersion: 1,
-              turnId: "probe",
-              commandId: crypto.randomUUID(),
-              expectedVersion: 1,
-              command: { type: "CLAIM_TIPSTER" },
-            }),
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ nickname: "Probe" }),
           },
         );
         if (!response.ok) {
           clearTimeout(timeout);
           socket.terminate();
-          reject(new Error(`Backend command failed: ${response.status}`));
+          reject(new Error(`Join failed: ${response.status}`));
         }
       }
       if (message.type === "data") {
@@ -127,11 +119,16 @@ async function receiveEvent(
           ? message.event
           : [message.event];
         resolve(
-          events.some(
-            (event: string | object) =>
-              (typeof event === "string" ? JSON.parse(event) : event)?.type ===
-              "game_updated",
-          ),
+          events.some((raw: string | object) => {
+            const text = typeof raw === "string" ? raw : JSON.stringify(raw);
+            const event = JSON.parse(text);
+            return (
+              event?.type === "game_updated" &&
+              event.snapshot.version === 2 &&
+              event.snapshot.participants.length === 2 &&
+              !/tokenHash|currentDraw|deck/.test(text)
+            );
+          }),
         );
       }
     });

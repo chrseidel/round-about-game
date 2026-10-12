@@ -105,3 +105,12 @@ test("pending reveal does not render result early, then exposes graded card", ()
     [0, 33, 66, 83],
   );
 });
+
+test("public event excludes secrets", () => {
+  const value = session();
+  value.game.current = 83;
+  const event = publicEvent(value, 1000);
+  for (const secret of ["tokenHash", "currentDraw", "deck"]) {
+    assert.equal(JSON.stringify(event).includes(secret), false);
+  }
+});

@@ -1,29 +1,41 @@
 import { defineBackend } from "@aws-amplify/backend";
-import { Stack, RemovalPolicy } from "aws-cdk-lib";
+import { Duration, Stack, RemovalPolicy } from "aws-cdk-lib";
 import {
   HttpApi,
   HttpMethod,
   CorsHttpMethod,
 } from "aws-cdk-lib/aws-apigatewayv2";
 import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
-import { AttributeType, BillingMode, Table } from "aws-cdk-lib/aws-dynamodb";
+import {
+  AttributeType,
+  BillingMode,
+  StreamViewType,
+  Table,
+} from "aws-cdk-lib/aws-dynamodb";
 import {
   AuthorizationType,
   CfnApi,
   CfnChannelNamespace,
 } from "aws-cdk-lib/aws-appsync";
 import { PolicyStatement, ServicePrincipal } from "aws-cdk-lib/aws-iam";
-import { CfnFunction } from "aws-cdk-lib/aws-lambda";
+import { CfnFunction, StartingPosition } from "aws-cdk-lib/aws-lambda";
+import {
+  DynamoEventSource,
+  SqsDlq,
+} from "aws-cdk-lib/aws-lambda-event-sources";
+import { Queue } from "aws-cdk-lib/aws-sqs";
 import { gameApi } from "./functions/game-api/resource.js";
 import { eventAuth } from "./functions/event-auth/resource.js";
+import { eventPublisher } from "./functions/event-publisher/resource.js";
 
-const backend = defineBackend({ gameApi, eventAuth });
+const backend = defineBackend({ gameApi, eventAuth, eventPublisher });
 const stack = backend.gameApi.resources.lambda.stack;
 
 const sessions = new Table(stack, "Sessions", {
   partitionKey: { name: "squid", type: AttributeType.STRING },
   billingMode: BillingMode.PAY_PER_REQUEST,
   timeToLiveAttribute: "expiresAt",
+  stream: StreamViewType.NEW_IMAGE,
   removalPolicy: RemovalPolicy.RETAIN,
 });
 sessions.grantReadWriteData(backend.gameApi.resources.lambda);
@@ -99,15 +111,33 @@ const events = new CfnApi(stack, "GameEvents", {
     defaultPublishAuthModes: [{ authType: AuthorizationType.IAM }],
   },
 });
-backend.gameApi.resources.lambda.addToRolePolicy(
+// Every committed session write is published from the table stream, so a
+// failed publish is retried by Lambda instead of depending on a later request.
+const publisher = backend.eventPublisher.resources.lambda;
+publisher.addToRolePolicy(
   new PolicyStatement({
     actions: ["appsync:EventPublish"],
     resources: [`${events.attrApiArn}/channelNamespace/games`],
   }),
 );
-gameFunction.addPropertyOverride(
+(publisher.node.defaultChild as CfnFunction).addPropertyOverride(
   "Environment.Variables.EVENTS_URL",
   `https://${events.getAtt("Dns.Http").toString()}/event`,
+);
+publisher.addEventSource(
+  new DynamoEventSource(sessions, {
+    startingPosition: StartingPosition.LATEST,
+    batchSize: 10,
+    retryAttempts: 5,
+    maxRecordAge: Duration.minutes(10),
+    reportBatchItemFailures: true,
+    // Failure records hold stream metadata only, never session contents.
+    onFailure: new SqsDlq(
+      new Queue(stack, "EventPublishFailures", {
+        retentionPeriod: Duration.days(4),
+      }),
+    ),
+  }),
 );
 backend.eventAuth.resources.lambda.addPermission("AppSyncAuthorize", {
   principal: new ServicePrincipal("appsync.amazonaws.com"),

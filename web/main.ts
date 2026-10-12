@@ -6,16 +6,21 @@ import {
   rememberParticipant,
   storedParticipant,
 } from "./session-api.ts";
+import { GameEvents } from "./events.ts";
 
 // Keep the local prototype usable until the multiplayer board is wired up.
 async function setupSessionEntry() {
   let endpoint: string | undefined;
+  let eventsEndpoint: string | undefined;
   try {
     const response = await fetch("/amplify_outputs.json");
-    if (response.ok)
-      endpoint = (
-        (await response.json()) as { custom?: { gameApiUrl?: string } }
-      ).custom?.gameApiUrl;
+    if (response.ok) {
+      const outputs = (await response.json()) as {
+        custom?: { gameApiUrl?: string; gameEventsUrl?: string };
+      };
+      endpoint = outputs.custom?.gameApiUrl;
+      eventsEndpoint = outputs.custom?.gameEventsUrl;
+    }
   } catch {
     /* no sandbox configured */
   }
@@ -29,13 +34,36 @@ async function setupSessionEntry() {
     : "";
   const saved = squid && storedParticipant(squid);
   const nickname = localStorage.getItem("one-round:nickname") ?? "";
+  const showLobby = (code: string, token: string) => {
+    entry.innerHTML =
+      '<div class="session-lobby"><h1>One Round</h1><p>Invite: <strong id="inviteCode"></strong></p><p id="lobbyPlayers"></p><p id="connectionStatus">Connecting…</p></div>';
+    entry.querySelector<HTMLElement>("#inviteCode")!.textContent = code;
+    const status = entry.querySelector<HTMLElement>("#connectionStatus")!;
+    const events = new GameEvents(
+      { endpoint: eventsEndpoint!, squid: code, token },
+      (snapshot) => {
+        entry.querySelector<HTMLElement>("#lobbyPlayers")!.textContent =
+          snapshot.participants.map((player) => player.nickname).join(", ");
+      },
+      () => api.snapshot(code, token),
+      (connected) => {
+        status.textContent = connected ? "Connected" : "Reconnecting…";
+      },
+      () => {
+        sessionStorage.removeItem(`one-round:${code}`);
+        status.textContent = "This session has ended.";
+      },
+    );
+    if (eventsEndpoint) void events.connect();
+    else status.textContent = "Live updates are not configured.";
+  };
   entry.innerHTML = `<form id="sessionForm"><h1>One Round</h1><label>Nickname <input id="nickname" maxlength="24" required /></label><label>Session code <input id="sessionCode" placeholder="Code or invitation link" /></label><div class="session-actions"><button type="submit" name="action" value="host">Host session</button><button type="submit" name="action" value="join">Join session</button></div><p id="sessionError" role="alert"></p></form>`;
   (entry.querySelector("#nickname") as HTMLInputElement).value = nickname;
   (entry.querySelector("#sessionCode") as HTMLInputElement).value = squid;
   if (saved) {
     try {
       await api.snapshot(squid, saved.token);
-      entry.textContent = `Joined session ${squid}. Multiplayer board is under construction.`;
+      showLobby(squid, saved.token);
       return;
     } catch {
       sessionStorage.removeItem(`one-round:${squid}`);
@@ -65,7 +93,7 @@ async function setupSessionEntry() {
         localStorage.setItem("one-round:nickname", name);
         rememberParticipant(grant.snapshot.squid, grant);
         history.replaceState(null, "", `/s/${grant.snapshot.squid}`);
-        entry.textContent = `Joined session ${grant.snapshot.squid}. Share this URL with friends. Multiplayer board is under construction.`;
+        showLobby(grant.snapshot.squid, grant.token);
       } catch (error) {
         message.textContent = (error as Error).message;
       }
