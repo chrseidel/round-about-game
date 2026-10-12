@@ -95,7 +95,7 @@ api.addRoutes({
 });
 
 const events = new CfnApi(stack, "GameEvents", {
-  name: "one-round-game-events",
+  name: "round-about-game-events",
   eventConfig: {
     authProviders: [
       {

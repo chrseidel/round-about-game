@@ -1,4 +1,4 @@
-# One Round: infrastructure and deployment plan
+# Round About: infrastructure and deployment plan
 
 **Status:** proposed infrastructure, not deployed. Companion to [ARCHITECTURE.md](ARCHITECTURE.md), which covers game rules, server authority, participant permissions and synchronized Reveal. Target: small groups, ~50 players and ~100 games/month. One GitHub repository; `main` is production.
 

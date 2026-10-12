@@ -1,8 +1,8 @@
-# One Round: ordered build tasks
+# Round About: ordered build tasks
 
 Work through tasks in order; commit each after verification. Design references: [ARCHITECTURE.md](ARCHITECTURE.md) and [INFRASTRUCTURE.md](INFRASTRUCTURE.md).
 
-**Current state:** Tasks 1–8 have separate commits. Vite app and tests work locally; an Amplify sandbox runs in `eu-central-1` using `AWS_PROFILE=chreisel`. Guest host/join and per-room AppSync authorization were exercised in the sandbox. This is **not a deployed playable multiplayer game**. Tasks 9–16 are pending. GitHub SSH authenticates, but `origin` currently points to `https://github.com/chrseidel/one-round.git`, which GitHub reports as **Repository not found**; fix/create the repository and use its SSH remote before CI/branch protection and production deployment can be verified. Do not commit `amplify_outputs.json` or `.amplify/`.
+**Current state:** Tasks 1–8 have separate commits. Vite app and tests work locally; an Amplify sandbox runs in `eu-central-1` using `AWS_PROFILE=chreisel`. Guest host/join and per-room AppSync authorization were exercised in the sandbox. This is **not a deployed playable multiplayer game**. Tasks 9–16 are pending. The GitHub repository is `chrseidel/round-about-game` (private), `origin` is `git@github.com:chrseidel/round-about-game.git`, and the Check workflow runs on pushes and PRs to `main`. Do not commit `amplify_outputs.json` or `.amplify/`.
 
 ## 1. Establish maintainable project tooling
 
@@ -36,7 +36,7 @@ Work through tasks in order; commit each after verification. Design references: 
 
 ## 4. Add PR verification in GitHub
 
-**Status:** Workflow committed in `6c3a4b0`; local `npm run check` passes. GitHub branch protection and hosted PR checks cannot be verified until remote repository exists. Complete that acceptance criterion before production deployment (Task 16).
+**Status:** Workflow committed in `6c3a4b0`; it runs on GitHub since 2026-10-12 (the first run exposed a broken lockfile, fixed in `3668a0e`). Branch protection is **not available** for a private repository on GitHub Free: decide between making the repo public, GitHub Pro, or accepting that direct pushes to `main` are not blocked. Resolve before production deployment (Task 16).
 
 **Context:** `main` will auto-deploy when changes land. Bad PRs must fail before merge.
 
@@ -156,7 +156,7 @@ Work through tasks in order; commit each after verification. Design references: 
 
 ## 16. Configure automatic GitHub `main` deployment
 
-**Status:** Pending. Requires accessible GitHub repository/SSH remote and completed GitHub branch protection from Task 4.
+**Status:** Pending. Requires the branch-protection decision from Task 4.
 
 **Context:** After dev flow passes, production should update when a PR is merged to `main`, using Amplify as only deploy trigger.
 

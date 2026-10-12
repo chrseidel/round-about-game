@@ -1,8 +1,8 @@
 import { defineFunction } from "@aws-amplify/backend";
 
 export const eventPublisher = defineFunction({
-  name: "one-round-event-publisher",
-  resourceGroupName: "one-round-game",
+  name: "round-about-event-publisher",
+  resourceGroupName: "round-about-game",
   entry: "./handler.ts",
   runtime: 22,
   timeoutSeconds: 10,

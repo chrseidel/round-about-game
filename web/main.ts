@@ -33,10 +33,10 @@ async function setupSessionEntry() {
     ? location.pathname.slice(3)
     : "";
   const saved = squid && storedParticipant(squid);
-  const nickname = localStorage.getItem("one-round:nickname") ?? "";
+  const nickname = localStorage.getItem("round-about:nickname") ?? "";
   const showLobby = (code: string, token: string) => {
     entry.innerHTML =
-      '<div class="session-lobby"><h1>One Round</h1><p>Invite: <strong id="inviteCode"></strong></p><p id="lobbyPlayers"></p><p id="connectionStatus">Connecting…</p></div>';
+      '<div class="session-lobby"><h1>Round About</h1><p>Invite: <strong id="inviteCode"></strong></p><p id="lobbyPlayers"></p><p id="connectionStatus">Connecting…</p></div>';
     entry.querySelector<HTMLElement>("#inviteCode")!.textContent = code;
     const status = entry.querySelector<HTMLElement>("#connectionStatus")!;
     const events = new GameEvents(
@@ -50,14 +50,14 @@ async function setupSessionEntry() {
         status.textContent = connected ? "Connected" : "Reconnecting…";
       },
       () => {
-        sessionStorage.removeItem(`one-round:${code}`);
+        sessionStorage.removeItem(`round-about:${code}`);
         status.textContent = "This session has ended.";
       },
     );
     if (eventsEndpoint) void events.connect();
     else status.textContent = "Live updates are not configured.";
   };
-  entry.innerHTML = `<form id="sessionForm"><h1>One Round</h1><label>Nickname <input id="nickname" maxlength="24" required /></label><label>Session code <input id="sessionCode" placeholder="Code or invitation link" /></label><div class="session-actions"><button type="submit" name="action" value="host">Host session</button><button type="submit" name="action" value="join">Join session</button></div><p id="sessionError" role="alert"></p></form>`;
+  entry.innerHTML = `<form id="sessionForm"><h1>Round About</h1><label>Nickname <input id="nickname" maxlength="24" required /></label><label>Session code <input id="sessionCode" placeholder="Code or invitation link" /></label><div class="session-actions"><button type="submit" name="action" value="host">Host session</button><button type="submit" name="action" value="join">Join session</button></div><p id="sessionError" role="alert"></p></form>`;
   (entry.querySelector("#nickname") as HTMLInputElement).value = nickname;
   (entry.querySelector("#sessionCode") as HTMLInputElement).value = squid;
   if (saved) {
@@ -66,7 +66,7 @@ async function setupSessionEntry() {
       showLobby(squid, saved.token);
       return;
     } catch {
-      sessionStorage.removeItem(`one-round:${squid}`);
+      sessionStorage.removeItem(`round-about:${squid}`);
     }
   }
   entry
@@ -90,7 +90,7 @@ async function setupSessionEntry() {
                 ),
                 name,
               );
-        localStorage.setItem("one-round:nickname", name);
+        localStorage.setItem("round-about:nickname", name);
         rememberParticipant(grant.snapshot.squid, grant);
         history.replaceState(null, "", `/s/${grant.snapshot.squid}`);
         showLobby(grant.snapshot.squid, grant.token);

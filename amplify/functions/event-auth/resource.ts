@@ -1,8 +1,8 @@
 import { defineFunction } from "@aws-amplify/backend";
 
 export const eventAuth = defineFunction({
-  name: "one-round-event-auth",
-  resourceGroupName: "one-round-game",
+  name: "round-about-event-auth",
+  resourceGroupName: "round-about-game",
   entry: "./handler.ts",
   runtime: 22,
   timeoutSeconds: 5,

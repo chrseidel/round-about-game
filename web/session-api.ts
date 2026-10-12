@@ -16,7 +16,7 @@ export function storedParticipant(
   squid: string,
 ): { participantId: string; token: string } | null {
   try {
-    const saved = sessionStorage.getItem(`one-round:${squid}`);
+    const saved = sessionStorage.getItem(`round-about:${squid}`);
     return saved ? JSON.parse(saved) : null;
   } catch {
     return null;
@@ -25,7 +25,7 @@ export function storedParticipant(
 
 export function rememberParticipant(squid: string, grant: ParticipantGrant) {
   sessionStorage.setItem(
-    `one-round:${squid}`,
+    `round-about:${squid}`,
     JSON.stringify({ participantId: grant.participantId, token: grant.token }),
   );
 }

@@ -1,4 +1,4 @@
-# One Round: multiplayer architecture draft
+# Round About: multiplayer architecture draft
 
 **Status:** proposal for review. **Target:** ~50 players across ~100 small-group games/month, each on their own device, often in a video call. Preserve one numbered-and-worded circle and one compact turn panel. This replaces the earlier hand-managed CloudFront + API Gateway WebSocket design with **Amplify Gen 2 Hosting and AppSync Events**; game rules still run on the server.
 
