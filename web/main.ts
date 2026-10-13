@@ -1,4 +1,5 @@
 import {
+  codeFromPath,
   SessionApi,
   normalizeCode,
   rememberParticipant,
@@ -39,9 +40,7 @@ async function setupSessionEntry() {
   const api = new SessionApi({ gameApiUrl: endpoint });
   const entry = document.querySelector<HTMLDivElement>("#sessionEntry")!;
   entry.hidden = false;
-  const squid = location.pathname.startsWith("/s/")
-    ? location.pathname.slice(3)
-    : "";
+  const squid = codeFromPath(location.pathname);
   const saved = squid && storedParticipant(squid);
   const nickname = localStorage.getItem("round-about:nickname") ?? "";
   let leaveCurrent = () => {};

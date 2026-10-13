@@ -1,12 +1,12 @@
 # Development handoff
 
-Read [TASKS.md](TASKS.md) for ordered work and acceptance criteria; [ARCHITECTURE.md](ARCHITECTURE.md) and [INFRASTRUCTURE.md](INFRASTRUCTURE.md) describe intended multiplayer behavior and deployment. **As of 2026-10-13: Tasks 1–15 are on `main`; Task 16 (production deployment) is in progress on branch `task-16-production`. The game is playable end to end in the sandbox with the local dev server, but there is no hosted deployment yet.** Do not treat a successful local build as completion of a task.
+Read [TASKS.md](TASKS.md) for ordered work and acceptance criteria; [ARCHITECTURE.md](ARCHITECTURE.md) and [INFRASTRUCTURE.md](INFRASTRUCTURE.md) describe intended multiplayer behavior and deployment. **As of 2026-10-13: Tasks 1–16 are on `main`. **The game is live at `https://round-about.chreisel.net`** (Amplify app `round-about-game`, ID `d25cphjw1kxoxa`, `eu-central-1`); merging to `main` deploys it. The game is playable end to end in the sandbox with the local dev server, but there is no hosted deployment yet.** Do not treat a successful local build as completion of a task.
 
 ## Resume here
 
 1. Inspect `git status`, `git diff`, and recent commits before changing anything. Since Task 16 `main` is protected for everyone: work on a branch per task (`task-NN-slug`), push it, open a pull request, wait for the `check` run, and merge only with the owner's OK (merging deploys production). Keep documentation changes in their own commit.
 2. The sandbox `round-about-dev` was deployed on 2026-10-12 after the rename and verified with `scripts/check-events.ts`; the old `one-round-dev` sandbox and its log groups were deleted. `amplify/backend.ts` is the single source of truth: redeploy with `AWS_PROFILE=chreisel npx ampx sandbox --once --identifier round-about-dev` after backend changes, before testing against AWS. Amplify sandboxes delete the session table with the stack despite `RemovalPolicy.RETAIN`; confirm production keeps it in Task 16. On 2026-10-09 a deploy from an uncommitted tree left a throwaway `POST /dev-publish/{squid}` route live until 2026-10-12.
-3. **Next: Task 16** (Amplify Hosting from GitHub `main` at `https://round-about.chreisel.net`). Continue with Task 16 **one at a time**. Workflow used for Task 9: agree a short design, write it to `docs/superpowers/specs/`, write a plan to `docs/superpowers/plans/`, build test-first, redeploy the sandbox, verify with scripts plus a three-tab browser test, then one feature commit and a separate docs commit. Push to `main` only when asked; CI must stay green.
+3. **Next:** the owner's two-device check from docs/SMOKE.md; afterwards new work starts from TASKS.md or new requests, always via a branch and pull request **one at a time**. Workflow used for Task 9: agree a short design, write it to `docs/superpowers/specs/`, write a plan to `docs/superpowers/plans/`, build test-first, redeploy the sandbox, verify with scripts plus a three-tab browser test, then one feature commit and a separate docs commit. Push to `main` only when asked; CI must stay green.
 4. **Open items for the owner, not code:** raise the Lambda concurrent-executions quota (see Task 9 notes); branch protection is accepted as a gap until Task 16; optionally rename the local folder `one-round` (this detaches Claude's saved project memory, which is keyed by folder path).
 
 ## Environment and deployment state
@@ -74,12 +74,14 @@ Read [TASKS.md](TASKS.md) for ordered work and acceptance criteria; [ARCHITECTUR
 - Phone layout verified at 375 × 812 in every phase; gaps got an invisible 44 px tap area.
 - After `npm install <package>`: `npm install --package-lock-only` and `npm ci --dry-run` (needed again for `@aws-sdk/client-cloudwatch`).
 
-## Production launch checklist (Task 16)
+## Production launch (Task 16, done 2026-10-13)
 
-Prerequisite: the Lambda concurrent-executions increase for `eu-central-1` is approved (`aws lambda get-account-settings` shows more than 10).
+Launched before the Lambda quota increase was approved (support case for 1000 concurrent executions still open on 2026-10-13; the limit is 10 until then). The steps below were done in this order; keep them as the reference for recreating production.
 
 1. **Owner:** merge the Task 16 pull request (after its `check` run passed).
 2. **Owner, AWS console** (`eu-central-1`): Amplify → Create new app → GitHub → authorize → repository `chrseidel/round-about-game`, branch `main` → app name `round-about` → let Amplify create a new service role → confirm the detected `amplify.yml` → Save and deploy. The first build deploys the production backend (separate stack) and the frontend.
-3. **Assistant, AWS CLI, each confirmed:** rewrite rule `</^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>` → `/index.html` (200); PR previews off; domain association `chreisel.net` with prefix `round-about` → `main` (certificate and Route 53 records created by Amplify).
+3. **Assistant, AWS CLI, each confirmed:** rewrite rule (placed before Amplify's default `/<*>` 404-200 fallback, which otherwise redirects `/s/<code>` to `/s/<code>/` and then answers 404) `</^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>` → `/index.html` (200); PR previews off; domain association `chreisel.net` with prefix `round-about` → `main` (certificate and Route 53 records created by Amplify).
 4. **Verify:** the build log shows `npm run check`; `https://round-about.chreisel.net` and a direct `/s/<code>` link load; the API's CORS answers the production origin and not localhost; the production part of [docs/SMOKE.md](docs/SMOKE.md) passes, including the owner's two-device check.
+- Facts from the launch: the console-created service role is named `AmplifySSRLoggingRole-…` but carries `AmplifyBackendDeployFullAccess`. The first build after connecting the app used the console's default build spec (it built `main` from before the merge); the merge build used `amplify.yml`. The domain created one `round-about` CNAME in the `chreisel.net` zone; the certificate is Amazon-issued for `*.chreisel.net`.
+- The page reads the session code with `codeFromPath`, which tolerates a trailing slash in `/s/<code>/`.
 
