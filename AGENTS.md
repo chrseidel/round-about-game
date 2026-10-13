@@ -1,6 +1,6 @@
 # Round About
 
-- For unfinished multiplayer work, read `DEVELOPMENT_HANDOFF.md` and the per-task statuses in `TASKS.md` before editing. Tasks 1–8 are committed; continue with Task 9. Commit each task separately from documentation changes. `amplify/backend.ts` is the single source of truth for AWS resources: redeploy the sandbox after backend changes and never leave spike-only resources deployed.
+- For unfinished multiplayer work, read `DEVELOPMENT_HANDOFF.md` and the per-task statuses in `TASKS.md` before editing. Tasks 1–15 are on `main`; Task 16 (production) is in progress. `main` is protected: work on a branch per task, open a pull request, the `check` workflow must pass, and merge only with the owner's OK — merging deploys production via Amplify Hosting. Keep documentation changes in their own commit. `amplify/backend.ts` is the single source of truth for AWS resources: redeploy the sandbox after backend changes and never leave spike-only resources deployed.
 
 - After `npm install <package>`, run `npm install --package-lock-only` and check `npm ci --dry-run`: npm drops nested lockfile entries Amplify needs, which breaks CI.
 - Vite prototype: `npm ci`, `npm run dev`, `npm run check`, `npm run build`. `index.html` loads `web/main.ts`, which currently imports legacy `app.js`; UI is split into `web/board.ts` and `web/panel.ts` while rules are being extracted.
