@@ -19,6 +19,12 @@ export function normalizeCode(value: string): string {
   return normalized;
 }
 
+/** The session code in an invite path (`/s/<code>`, trailing slash allowed). */
+export function codeFromPath(pathname: string): string {
+  const match = /^\/s\/([^/]+)\/?$/.exec(pathname);
+  return match ? match[1]!.toUpperCase() : "";
+}
+
 export function storedParticipant(
   squid: string,
 ): { participantId: string; token: string } | null {
