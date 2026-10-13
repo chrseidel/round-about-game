@@ -7,6 +7,8 @@ import {
   chooseGap,
   drawCard,
   lockGap,
+  nextTurn,
+  replaceSession,
   joinSession,
   newSession,
   nickname,
@@ -17,7 +19,7 @@ import {
 } from "./session.ts";
 import { clueError } from "../../../game/rules.ts";
 import { reconcile } from "../../../shared/deadlines.ts";
-import { projectCaller } from "../../../shared/protocol.ts";
+import { projectCaller, type Session } from "../../../shared/protocol.ts";
 
 test("hosting issues a unique secret per participant; invite code alone is insufficient", () => {
   const { session, participantId, credential } = newSession("Alice", 10_000);
@@ -322,4 +324,130 @@ test("timeouts reveal immediately", () => {
   assert.equal(expired.revealAtUtc, null);
   assert.notEqual(projectCaller(expired, host, 21_000).result, null);
   assert.equal(newSession("Zoe", 0).session.lockedBy, null);
+});
+
+/** Index of the gap the drawn card belongs in (the reducer's rule). */
+function correctGap(session: Session) {
+  const { cards, current } = session.game;
+  const insertion = cards.findIndex((card) => card.number > current!);
+  const target = insertion < 0 ? cards.length : insertion;
+  return (target - 1 + cards.length) % cards.length;
+}
+
+function lastCard(lives = 3) {
+  const { session, host, bob, carol } = guessing(lives);
+  return {
+    session: { ...session, game: { ...session.game, pile: 0 } },
+    host,
+    bob,
+    carol,
+  };
+}
+
+function lockAt(
+  session: Session,
+  chooser: string,
+  locker: string,
+  index: number,
+) {
+  const chosen = chooseGap(session, chooser, index);
+  return lockGap(chosen, locker, index, chosen.version, 2_000);
+}
+
+test("correct last card wins", () => {
+  const { session, host, carol } = lastCard();
+  assert.equal(lockAt(session, host, carol, correctGap(session)).status, "won");
+  const overtime = lastCard(0);
+  assert.equal(
+    lockAt(
+      overtime.session,
+      overtime.host,
+      overtime.carol,
+      correctGap(overtime.session),
+    ).status,
+    "won",
+  );
+});
+
+test("wrong last card continues; Overtime wrong lock loses", () => {
+  const { session, host, carol } = lastCard();
+  const wrong = (correctGap(session) + 1) % session.game.cards.length;
+  assert.equal(lockAt(session, host, carol, wrong).status, "playing");
+  const overtime = guessing(0);
+  const miss =
+    (correctGap(overtime.session) + 1) % overtime.session.game.cards.length;
+  assert.equal(
+    lockAt(overtime.session, overtime.host, overtime.carol, miss).status,
+    "lost",
+  );
+});
+
+function revealedWrong() {
+  const { session, host, bob, carol } = guessing();
+  const wrong = (correctGap(session) + 1) % session.game.cards.length;
+  return { session: lockAt(session, host, carol, wrong), host, bob, carol };
+}
+
+test("next turn waits for the reveal and clears it", () => {
+  const { session, bob, carol } = revealedWrong();
+  rejects(
+    () => nextTurn(session, carol, 5_000),
+    "FORBIDDEN",
+    "Only the Tipster can draw.",
+  );
+  rejects(
+    () => nextTurn(session, bob, 3_999),
+    "INVALID_PHASE",
+    "Wait for the reveal.",
+  );
+  const next = nextTurn(session, bob, 4_000);
+  assert.equal(next.game.phase, "ready");
+  assert.equal(next.revealAtUtc, null);
+  assert.equal(next.lockedBy, null);
+  assert.equal(next.game.current, null);
+  assert.equal(next.version, session.version + 1);
+});
+
+test("draw next card advances and draws", () => {
+  const { session, bob } = revealedWrong();
+  const drawn = drawCard(session, bob, 5_000);
+  assert.equal(drawn.game.phase, "tip");
+  assert.equal(drawn.tipsterId, bob);
+  assert.ok(
+    !session.game.cards.some((card) => card.number === drawn.game.current),
+  );
+  assert.notEqual(drawn.game.current, session.game.current);
+  assert.equal(drawCard(drawn, bob, 6_000), drawn);
+});
+
+test("replacement after a wrong last card", () => {
+  const { session, host, bob, carol } = lastCard();
+  const wrong = (correctGap(session) + 1) % session.game.cards.length;
+  const missed = lockAt(session, host, carol, wrong);
+  const replacement = drawCard(missed, bob, 5_000);
+  assert.equal(replacement.game.phase, "tip");
+  assert.equal(replacement.game.pile, 0);
+});
+
+test("new session replaces the old", () => {
+  const { session: old, host, bob } = revealedWrong();
+  rejects(
+    () => replaceSession(old, bob, 10_000),
+    "FORBIDDEN",
+    "Only the host can start a new session.",
+  );
+  const replaced = replaceSession(old, host, 10_000);
+  assert.notEqual(replaced.session.squid, old.squid);
+  assert.equal(replaced.session.status, "lobby");
+  assert.equal(replaced.session.tipsterId, null);
+  assert.equal(replaced.session.game.pile, 12);
+  assert.equal(replaced.session.game.cards.length, 3);
+  assert.equal(replaced.session.participants[0]!.nickname, "Alice");
+  assert.equal(replaced.old.nextSquid, replaced.session.squid);
+  assert.equal(replaced.old.expiresAt, 10 + 600);
+  assert.equal(replaced.old.version, old.version + 1);
+  assert.equal(
+    authenticate(replaced.session, replaced.credential),
+    replaced.participantId,
+  );
 });

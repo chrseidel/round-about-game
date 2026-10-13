@@ -3,7 +3,9 @@ import type { CallerSnapshot, SessionCommand } from "../shared/protocol.ts";
 export type TurnView = {
   heading: string;
   description: string;
-  mode: "draw" | "write" | "wait" | "none";
+  mode: "draw" | "write" | "wait" | "join" | "none";
+  /** Text of the draw button. */
+  drawLabel: string;
   secret: number | null;
   countdown: boolean;
   timerLabel: string;
@@ -38,7 +40,17 @@ export function turnView(
     clue: snapshot.clue,
     revealAtUtc: null,
     tone: null,
+    drawLabel: snapshot.pile === 0 ? "Draw replacement" : "Draw card",
   });
+  const host =
+    snapshot.participants.find((player) => player.id === snapshot.hostId)
+      ?.nickname ?? "The host";
+  if (snapshot.nextSquid)
+    return view("New game", `${host} started a new game.`, "join");
+  if (snapshot.status === "won")
+    return { ...view("You won!", "Last card placed correctly."), tone: "good" };
+  if (snapshot.status === "lost")
+    return { ...view("Game over", "Overtime ended."), tone: "bad" };
   if (snapshot.pendingReveal) {
     const locker =
       snapshot.lockedBy === participantId
@@ -96,9 +108,22 @@ export function turnView(
             "DISCUSSION",
           );
     case "result": {
+      // The game goes on: the Tipster draws next, everyone else waits.
+      const next = (shown: TurnView): TurnView =>
+        isTipster
+          ? {
+              ...shown,
+              mode: "draw",
+              drawLabel:
+                snapshot.pile === 0 ? "Draw replacement" : "Draw next card",
+            }
+          : {
+              ...shown,
+              description: `${shown.description} Waiting for ${tipster} to draw the next card.`,
+            };
       const result = snapshot.result;
       if (!result || result.discarded)
-        return view("Card discarded", "Time ran out.");
+        return next(view("Card discarded", "Time ran out."));
       const word = (number?: number) =>
         snapshot.cards.find((card) => card.number === number)?.word ?? "";
       const placed = `${snapshot.clue} · ${result.number} sits between ${word(result.lower)} and ${word(result.upper)}.`;
@@ -107,7 +132,7 @@ export function turnView(
         : result.correct
           ? ""
           : " Life lost.";
-      return {
+      return next({
         ...view(
           result.correct
             ? "Correct!"
@@ -117,7 +142,7 @@ export function turnView(
           placed + after,
         ),
         tone: result.correct ? "good" : "bad",
-      };
+      });
     }
     default:
       return view("", "");
@@ -192,6 +217,17 @@ export function revealed(
   };
 }
 
+/**
+ * Whether starting a new session interrupts a running game. Uses the
+ * revealed state: after a reveal the raw snapshot still says "playing".
+ */
+export function confirmsNewSession(
+  snapshot: CallerSnapshot,
+  serverNow: number,
+): boolean {
+  return revealed(snapshot, serverNow).status === "playing";
+}
+
 /** Whole seconds left on the server's clock, given the browser's clock offset. */
 export function secondsLeft(
   deadlineUtc: number | null,
@@ -204,6 +240,7 @@ export function secondsLeft(
 
 export type TurnActions = {
   draw(): void;
+  join(): void;
   send(): void;
   edit(value: string): void;
 };
@@ -225,7 +262,7 @@ export function renderTurn(
   else delete find("turnHeading").dataset.tone;
   find("turnDescription").textContent = view.description;
   const content = find("turnContent");
-  const key = `${view.mode}:${view.secret ?? ""}:${view.timerLabel}:${view.revealAtUtc ?? ""}`;
+  const key = `${view.mode}:${view.secret ?? ""}:${view.timerLabel}:${view.revealAtUtc ?? ""}:${view.drawLabel}`;
   if (content.dataset.key !== key) {
     content.dataset.key = key;
     content.replaceChildren();
@@ -235,9 +272,15 @@ export function renderTurn(
       content.append(bar);
     }
     if (view.mode === "draw") {
-      const button = element("button", "button primary", "Draw card");
+      const button = element("button", "button primary", view.drawLabel);
       button.id = "drawButton";
       button.addEventListener("click", actions.draw);
+      content.append(button);
+    }
+    if (view.mode === "join") {
+      const button = element("button", "button primary", "Join");
+      button.id = "joinButton";
+      button.addEventListener("click", actions.join);
       content.append(button);
     }
     if (view.mode === "write") {

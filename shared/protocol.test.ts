@@ -130,3 +130,11 @@ test("drawn number never reaches Guessers or events", () => {
   assert.equal(event.includes("currentDraw"), false);
   assert.equal(event.includes(`"number":${drawn}`), false);
 });
+
+test("snapshots point to a replacing session", () => {
+  assert.equal(projectPublic(session(), 0).nextSquid, null);
+  assert.equal(
+    projectPublic({ ...session(), nextSquid: "ABCDEFGHJKMN" }, 0).nextSquid,
+    "ABCDEFGHJKMN",
+  );
+});

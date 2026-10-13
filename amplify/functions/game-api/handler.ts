@@ -19,6 +19,7 @@ import {
   newSession,
   nickname,
   normalizeSquid,
+  replaceSession,
 } from "./session.ts";
 
 const db = documentClient();
@@ -159,6 +160,69 @@ async function runCommand(
   });
 }
 
+/**
+ * The host's "New session": a fresh session for the host, and the old one
+ * pointing to it so every other player can follow with one click.
+ */
+async function startReplacement(
+  event: Parameters<APIGatewayProxyHandlerV2>[0],
+  squid: string,
+): Promise<APIGatewayProxyStructuredResultV2> {
+  const old = await load(squid);
+  if (!old)
+    return response(404, { code: "NOT_FOUND", message: "Session not found." });
+  const participantId = authenticate(old, bearer(event));
+  if (!participantId)
+    return response(401, {
+      code: "UNAUTHORIZED",
+      message: "Join this session first.",
+    });
+  let replaced;
+  try {
+    replaced = replaceSession(old, participantId, Date.now());
+  } catch (error) {
+    if (!(error instanceof CommandError)) throw error;
+    return response(ERROR_STATUS[error.code], {
+      code: error.code,
+      message: error.message,
+    });
+  }
+  await db.send(
+    new PutCommand({
+      TableName: table,
+      Item: replaced.session,
+      ConditionExpression: "attribute_not_exists(squid)",
+    }),
+  );
+  try {
+    await db.send(
+      new PutCommand({
+        TableName: table,
+        Item: replaced.old,
+        ConditionExpression: "#version = :version",
+        ExpressionAttributeNames: { "#version": "version" },
+        ExpressionAttributeValues: { ":version": old.version },
+      }),
+    );
+  } catch (error) {
+    if ((error as Error).name !== "ConditionalCheckFailedException")
+      throw error;
+    return response(409, {
+      code: "STALE_VERSION",
+      message: "Session changed. Retry.",
+    });
+  }
+  return response(201, {
+    participantId: replaced.participantId,
+    token: replaced.credential,
+    snapshot: projectCaller(
+      replaced.session,
+      replaced.participantId,
+      Date.now(),
+    ),
+  });
+}
+
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   const method = event.requestContext.http.method;
   const path = event.rawPath;
@@ -172,7 +236,11 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
 
   try {
     if (method === "POST" && path === "/sessions") {
-      const name = inputNickname(input(event));
+      const body = input(event);
+      const replaces = (body as { replaces?: unknown } | null)?.replaces;
+      if (typeof replaces === "string")
+        return await startReplacement(event, normalizeSquid(replaces));
+      const name = inputNickname(body);
       for (let attempt = 0; attempt < 3; attempt++) {
         const { session, participantId, credential } = newSession(
           name,

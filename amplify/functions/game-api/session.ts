@@ -1,6 +1,7 @@
 import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import { apply, clueError, createGame } from "../../../game/rules.ts";
 import { projectCaller, type Session } from "../../../shared/protocol.ts";
+import { finalStatus } from "../../../shared/deadlines.ts";
 
 const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 export const MAX_PLAYERS = 12;
@@ -201,6 +202,9 @@ export function drawCard(
   if (session.status !== "playing")
     throw new CommandError("INVALID_PHASE", "The game has not started.");
   if (["tip", "grace"].includes(session.game.phase)) return session;
+  // "Draw next card" after a result: advance the turn, then draw.
+  if (session.game.phase === "result")
+    session = nextTurn(session, participantId, now);
   if (session.game.phase !== "ready" || !session.game.deck.length)
     throw new CommandError("INVALID_PHASE", "No card can be drawn now.");
   return {
@@ -285,11 +289,68 @@ export function lockGap(
       "STALE_VERSION",
       "The selection changed. Tap again to lock in.",
     );
+  const graded = apply(game, { type: "LOCK_GAP" }, now);
   return {
     ...session,
     version: session.version + 1,
-    game: apply(game, { type: "LOCK_GAP" }, now),
+    game: graded,
+    status: finalStatus(graded),
     revealAtUtc: now + REVEAL_DELAY_MS,
     lockedBy: participantId,
+  };
+}
+
+/** Tipster-only; never before the shared reveal, and clears it. */
+export function nextTurn(
+  session: Session,
+  participantId: string,
+  now: number,
+): Session {
+  if (participantId !== session.tipsterId)
+    throw new CommandError("FORBIDDEN", "Only the Tipster can draw.");
+  if (session.status !== "playing" || session.game.phase !== "result")
+    throw new CommandError("INVALID_PHASE", "No card can be drawn now.");
+  if (session.revealAtUtc !== null && now < session.revealAtUtc)
+    throw new CommandError("INVALID_PHASE", "Wait for the reveal.");
+  const game = apply(session.game, { type: "NEXT_TURN" }, now);
+  return {
+    ...session,
+    version: session.version + 1,
+    // The previous draw is public after the reveal; it is still cleared so
+    // nothing of the last card carries into the next turn.
+    game: { ...game, current: null },
+    revealAtUtc: null,
+    lockedBy: null,
+    // Only an exhausted deck can finish a game that is still playing here.
+    status: game.phase === "finished" ? "lost" : session.status,
+  };
+}
+
+const MOVED_SESSION_SECONDS = 10 * 60;
+
+/**
+ * Host-only: a fresh session (new code, roles, pile and cards) for the same
+ * host, and the old session pointing to it until it expires shortly after.
+ */
+export function replaceSession(
+  old: Session,
+  participantId: string,
+  now: number,
+) {
+  if (participantId !== old.hostId)
+    throw new CommandError(
+      "FORBIDDEN",
+      "Only the host can start a new session.",
+    );
+  const host = old.participants.find((p) => p.id === participantId)!;
+  const fresh = newSession(host.nickname, now);
+  return {
+    ...fresh,
+    old: {
+      ...old,
+      version: old.version + 1,
+      nextSquid: fresh.session.squid,
+      expiresAt: Math.floor(now / 1000) + MOVED_SESSION_SECONDS,
+    },
   };
 }

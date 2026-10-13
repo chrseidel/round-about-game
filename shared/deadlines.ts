@@ -1,5 +1,5 @@
-import { apply, type Command } from "../game/rules.ts";
-import type { Session } from "./protocol.ts";
+import { apply, type Command, type Game } from "../game/rules.ts";
+import type { Session, SessionStatus } from "./protocol.ts";
 
 export type TimeoutMessage = {
   squid: string;
@@ -41,7 +41,22 @@ export function reconcile(session: Session, now: number): Session {
   }
   return game === session.game
     ? session
-    : { ...session, version: session.version + 1, game };
+    : {
+        ...session,
+        version: session.version + 1,
+        game,
+        status: finalStatus(game),
+      };
+}
+
+/**
+ * Whether a result ends the game: a lost result loses, a correct placement
+ * of the last pile card wins (also in Overtime), anything else continues.
+ */
+export function finalStatus(game: Game): SessionStatus {
+  if (game.lastResult?.lost) return "lost";
+  if (game.lastResult?.correct && game.pile === 0) return "won";
+  return "playing";
 }
 
 export function timeoutMessage(session: Session): TimeoutMessage | null {

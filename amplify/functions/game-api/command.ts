@@ -11,6 +11,7 @@ import {
   CommandError,
   drawCard,
   lockGap,
+  nextTurn,
   startGame,
   submitClue,
 } from "./session.ts";
@@ -47,6 +48,11 @@ export function applyCommand(
   expectedVersion: number,
   now: number,
 ): Session {
+  if (session.nextSquid)
+    throw new CommandError(
+      "INVALID_PHASE",
+      "This game has moved to a new session.",
+    );
   const current = reconcile(session, now);
   switch (command.type) {
     case "CLAIM_TIPSTER":
@@ -68,6 +74,8 @@ export function applyCommand(
         expectedVersion,
         now,
       );
+    case "NEXT_TURN":
+      return nextTurn(current, participantId, now);
     default:
       throw new CommandError("INVALID_INPUT", "Not available yet.");
   }

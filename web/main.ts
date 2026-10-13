@@ -6,10 +6,14 @@ import {
 } from "./session-api.ts";
 import { GameEvents } from "./events.ts";
 import { LOBBY_HTML, lobbyView, renderLobby } from "./lobby.ts";
-import { mergePrivate, secondsLeft } from "./turn.ts";
+import { confirmsNewSession, mergePrivate, secondsLeft } from "./turn.ts";
 import { renderPlay } from "./play.ts";
 import { clueError } from "../game/rules.ts";
-import type { CallerSnapshot, SessionCommand } from "../shared/protocol.ts";
+import type {
+  CallerSnapshot,
+  ParticipantGrant,
+  SessionCommand,
+} from "../shared/protocol.ts";
 
 async function setupSessionEntry() {
   let endpoint: string | undefined;
@@ -40,15 +44,29 @@ async function setupSessionEntry() {
     : "";
   const saved = squid && storedParticipant(squid);
   const nickname = localStorage.getItem("round-about:nickname") ?? "";
+  let leaveCurrent = () => {};
+  /** Leaves the current session and opens another one with a fresh seat. */
+  const switchTo = (grant: ParticipantGrant) => {
+    leaveCurrent();
+    const next = grant.snapshot.squid;
+    rememberParticipant(next, grant);
+    history.replaceState(null, "", `/s/${next}`);
+    entry.hidden = false;
+    leaveCurrent = showSession(next, grant);
+  };
   const showSession = (
     code: string,
     seat: { participantId: string; token: string },
-  ) => {
+  ): (() => void) => {
     entry.innerHTML = LOBBY_HTML;
     const find = (id: string) => entry.querySelector<HTMLElement>(`#${id}`)!;
     find("inviteCode").textContent = code;
     const status = find("connectionStatus");
-    document.getElementById("newGameButton")!.hidden = true;
+    const newGame = document.getElementById("newGameButton")!;
+    const confirm = document.getElementById(
+      "confirmDialog",
+    ) as HTMLDialogElement;
+    newGame.hidden = true;
     let latest: CallerSnapshot | null = null;
     let offset = 0;
     let draft = "";
@@ -58,7 +76,9 @@ async function setupSessionEntry() {
     let revealTimer: ReturnType<typeof setTimeout> | undefined;
     const render = () => {
       if (!latest) return;
-      if (latest.status === "lobby") {
+      newGame.hidden =
+        latest.hostId !== seat.participantId || Boolean(latest.nextSquid);
+      if (latest.status === "lobby" && !latest.nextSquid) {
         renderLobby(entry, lobbyView(latest, seat.participantId));
         return;
       }
@@ -79,6 +99,7 @@ async function setupSessionEntry() {
         error,
         {
           draw: () => void send({ type: "DRAW" }),
+          join: () => void join(),
           send: () => {
             error = clueError(draft, latest!.cards);
             if (error) render();
@@ -125,7 +146,7 @@ async function setupSessionEntry() {
       timer.textContent = `0:${String(seconds).padStart(2, "0")}`;
       timer.classList.toggle("urgent", seconds <= 5);
     };
-    setInterval(tick, 200);
+    const ticker = setInterval(tick, 200);
     window.addEventListener("resize", render);
     const events = new GameEvents(
       { endpoint: eventsEndpoint!, squid: code, token: seat.token },
@@ -181,8 +202,42 @@ async function setupSessionEntry() {
         find("inviteCode").textContent = link;
       }
     });
+    // Follow the host to the session the old one points to.
+    const join = async () => {
+      const me = latest?.participants.find((p) => p.id === seat.participantId);
+      if (!latest?.nextSquid || !me) return;
+      try {
+        switchTo(await api.join(latest.nextSquid, me.nickname));
+      } catch (failure) {
+        error = (failure as Error).message;
+        render();
+      }
+    };
+    const startNewSession = async () => {
+      try {
+        switchTo(await api.newSession(code, seat.token));
+      } catch (failure) {
+        error = (failure as Error).message;
+        render();
+      }
+    };
+    // Assigned (not added) so a later session replaces these handlers.
+    newGame.onclick = () => {
+      if (latest && confirmsNewSession(latest, Date.now() + offset))
+        confirm.showModal();
+      else void startNewSession();
+    };
+    confirm.onclose = () => {
+      if (confirm.returnValue === "confirm") void startNewSession();
+    };
     if (eventsEndpoint) void events.connect();
     else status.textContent = "Live updates are not configured.";
+    return () => {
+      events.close();
+      clearInterval(ticker);
+      clearTimeout(revealTimer);
+      window.removeEventListener("resize", render);
+    };
   };
   entry.innerHTML = `<form id="sessionForm"><h1>Round About</h1><label>Nickname <input id="nickname" maxlength="24" required /></label><label>Session code <input id="sessionCode" placeholder="Code or invitation link" /></label><div class="session-actions"><button type="submit" name="action" value="host">Host session</button><button type="submit" name="action" value="join">Join session</button></div><p id="sessionError" role="alert"></p></form>`;
   (entry.querySelector("#nickname") as HTMLInputElement).value = nickname;
@@ -190,7 +245,7 @@ async function setupSessionEntry() {
   if (saved) {
     try {
       await api.snapshot(squid, saved.token);
-      showSession(squid, saved);
+      leaveCurrent = showSession(squid, saved);
       return;
     } catch {
       sessionStorage.removeItem(`round-about:${squid}`);
@@ -218,9 +273,7 @@ async function setupSessionEntry() {
                 name,
               );
         localStorage.setItem("round-about:nickname", name);
-        rememberParticipant(grant.snapshot.squid, grant);
-        history.replaceState(null, "", `/s/${grant.snapshot.squid}`);
-        showSession(grant.snapshot.squid, grant);
+        switchTo(grant);
       } catch (error) {
         message.textContent = (error as Error).message;
       }

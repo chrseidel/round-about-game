@@ -4,6 +4,7 @@ import { apply, createGame } from "../game/rules.ts";
 import type { Session } from "./protocol.ts";
 import {
   decideTimeout,
+  finalStatus,
   reconcile,
   timeoutDelay,
   timeoutMessage,
@@ -140,4 +141,49 @@ test("selected but unlocked gap at Overtime expiry is a miss", () => {
   assert.equal(result?.timedOut, true);
   assert.equal(result?.correct, false);
   assert.equal(result?.lost, true);
+});
+
+test("finalStatus decides the end at each result", () => {
+  const game = drawn().game;
+  const result = {
+    correct: true,
+    lost: false,
+    discarded: false,
+    timedOut: false,
+  };
+  assert.equal(
+    finalStatus({
+      ...game,
+      lastResult: { ...result, correct: false, lost: true },
+    }),
+    "lost",
+  );
+  assert.equal(finalStatus({ ...game, pile: 0, lastResult: result }), "won");
+  assert.equal(
+    finalStatus({ ...game, pile: 0, lives: 0, lastResult: result }),
+    "won",
+  );
+  assert.equal(
+    finalStatus({ ...game, pile: 3, lastResult: result }),
+    "playing",
+  );
+  assert.equal(
+    finalStatus({
+      ...game,
+      pile: 0,
+      lives: 2,
+      lastResult: { ...result, correct: false },
+    }),
+    "playing",
+  );
+});
+
+test("Overtime timeout loses the session", () => {
+  assert.equal(reconcile(overtime(), 5_000).status, "lost");
+});
+
+test("grace discard at 0 lives loses the session", () => {
+  const session = drawn();
+  session.game = { ...session.game, lives: 0 };
+  assert.equal(reconcile(session, 23_000).status, "lost");
 });

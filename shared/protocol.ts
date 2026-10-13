@@ -19,6 +19,8 @@ export type Session = {
   expiresAt: number;
   /** IDs of the last applied commands, so retries are not applied twice. */
   recentCommands?: string[];
+  /** Set when the host started a new session; players follow this code. */
+  nextSquid?: string | null;
 };
 
 export type PublicResult = Pick<
@@ -49,6 +51,7 @@ export type PublicSnapshot = {
   result: PublicResult | null;
   revealAtUtc: number | null;
   lockedBy: string | null;
+  nextSquid: string | null;
   /** Server clock when the snapshot was made; browsers correct countdowns with it. */
   serverTimeUtc: number;
   pendingReveal: {
@@ -167,6 +170,7 @@ export function projectPublic(session: Session, now: number): PublicSnapshot {
     result: revealPending ? null : publicResult(game.lastResult, game.current),
     revealAtUtc: session.revealAtUtc,
     lockedBy: session.lockedBy ?? null,
+    nextSquid: session.nextSquid ?? null,
     serverTimeUtc: now,
     pendingReveal:
       revealPending && pendingResult

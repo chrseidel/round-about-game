@@ -67,6 +67,18 @@ export class SessionApi {
     });
   }
 
+  /** The host's "New session": a fresh session the old one points to. */
+  newSession(replaces: string, token: string) {
+    return this.request<ParticipantGrant>("/sessions", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ replaces }),
+    });
+  }
+
   join(squid: string, nickname: string) {
     return this.request<ParticipantGrant>(
       `/sessions/${encodeURIComponent(squid)}/participants`,

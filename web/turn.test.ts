@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { CallerSnapshot } from "../shared/protocol.ts";
 import {
+  confirmsNewSession,
   gapCommand,
   mergePrivate,
   revealed,
@@ -69,7 +70,7 @@ test("Tipster and Guesser views per phase", () => {
   });
   for (const me of ["alice", "bob"]) {
     assert.equal(turnView(discarded, me).heading, "Card discarded");
-    assert.equal(turnView(discarded, me).description, "Time ran out.");
+    assert.ok(turnView(discarded, me).description.startsWith("Time ran out."));
   }
 });
 
@@ -160,14 +161,19 @@ test("result texts", () => {
     });
   const correct = turnView(result({}), "alice");
   assert.equal(correct.heading, "Correct!");
-  assert.equal(
-    correct.description,
-    "river · 42 sits between Lantern and Orbit.",
+  assert.ok(
+    correct.description.startsWith(
+      "river · 42 sits between Lantern and Orbit.",
+    ),
   );
   const wrong = turnView(result({ correct: false }), "bob");
   assert.equal(wrong.heading, "Wrong gap");
   assert.ok(wrong.description.endsWith(" Life lost."));
-  const lost = turnView(result({ correct: false, lost: true }), "alice");
+  // A lost result always ends the game (finalStatus), so status is "lost".
+  const lost = turnView(
+    { ...result({ correct: false, lost: true }), status: "lost" },
+    "alice",
+  );
   assert.ok(lost.description.endsWith("Overtime ended."));
   const late = turnView(result({ correct: false, timedOut: true }), "alice");
   assert.equal(late.heading, "Time ran out");
@@ -230,4 +236,66 @@ test("build-up texts", () => {
     turnView(pending(), "carol").description,
     "You locked in. Revealing…",
   );
+});
+
+const afterResult = (overrides: Partial<CallerSnapshot> = {}) =>
+  guessing({
+    phase: "result",
+    pile: 5,
+    result: {
+      correct: false,
+      lost: false,
+      discarded: false,
+      timedOut: false,
+      number: 42,
+      lower: 33,
+      upper: 66,
+    },
+    ...overrides,
+  });
+
+test("the Tipster draws the next card after a result", () => {
+  const tipster = turnView(afterResult(), "bob");
+  assert.equal(tipster.mode, "draw");
+  assert.equal(tipster.drawLabel, "Draw next card");
+  assert.equal(tipster.heading, "Wrong gap");
+  assert.equal(
+    turnView(afterResult({ pile: 0 }), "bob").drawLabel,
+    "Draw replacement",
+  );
+  const guesser = turnView(afterResult(), "alice");
+  assert.equal(guesser.mode, "none");
+  assert.ok(guesser.description.startsWith("river · 42 sits between"));
+  assert.ok(
+    guesser.description.endsWith(" Waiting for Bob to draw the next card."),
+  );
+});
+
+test("game end shows the same panel to everyone", () => {
+  for (const me of ["alice", "bob"]) {
+    const won = turnView(afterResult({ status: "won" }), me);
+    assert.equal(won.heading, "You won!");
+    assert.equal(won.description, "Last card placed correctly.");
+    assert.equal(won.mode, "none");
+    const lost = turnView(afterResult({ status: "lost" }), me);
+    assert.equal(lost.heading, "Game over");
+    assert.equal(lost.description, "Overtime ended.");
+  }
+});
+
+test("a moved session offers to join the new one", () => {
+  const moved = turnView(afterResult({ nextSquid: "ABCDEFGHJKMN" }), "bob");
+  assert.equal(moved.heading, "New game");
+  assert.equal(moved.description, "Alice started a new game.");
+  assert.equal(moved.mode, "join");
+});
+
+test("a new session needs confirmation only while the game really runs", () => {
+  const won = {
+    ...pending(),
+    pendingReveal: { ...pending().pendingReveal!, status: "won" as const },
+  };
+  assert.equal(confirmsNewSession(won, 9_999), true);
+  assert.equal(confirmsNewSession(won, 10_000), false);
+  assert.equal(confirmsNewSession(afterResult({ status: "lost" }), 0), false);
 });

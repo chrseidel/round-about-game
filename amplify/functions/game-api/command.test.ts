@@ -73,7 +73,13 @@ test("apply dispatches and rejects later commands", () => {
   );
   assert.throws(
     () =>
-      applyCommand(session, participantId, { type: "NEXT_TURN" }, 0, 10_000),
+      applyCommand(
+        session,
+        participantId,
+        { type: "UNKNOWN" } as never,
+        0,
+        10_000,
+      ),
     /Not available yet\./,
   );
 });
@@ -158,5 +164,20 @@ test("apply passes the expected version to lock", () => {
     applyCommand(session, carol.participantId, lock, session.version, 2_000)
       .game.phase,
     "result",
+  );
+});
+
+test("moved sessions refuse commands", () => {
+  const { session, participantId } = newSession("Alice", 0);
+  assert.throws(
+    () =>
+      applyCommand(
+        { ...session, nextSquid: "ABCDEFGHJKMN" },
+        participantId,
+        { type: "CLAIM_TIPSTER" },
+        0,
+        0,
+      ),
+    /This game has moved to a new session\./,
   );
 });
