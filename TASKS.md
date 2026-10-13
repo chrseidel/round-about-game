@@ -2,7 +2,7 @@
 
 Work through tasks in order; commit each after verification. Design references: [ARCHITECTURE.md](ARCHITECTURE.md) and [INFRASTRUCTURE.md](INFRASTRUCTURE.md).
 
-**Current state:** Tasks 1–15 have separate commits. Vite app and tests work locally; an Amplify sandbox runs in `eu-central-1` using `AWS_PROFILE=chreisel`. Guest host/join and per-room AppSync authorization were exercised in the sandbox. This is **not a deployed playable multiplayer game**. Task 16 is pending. The GitHub repository is `chrseidel/round-about-game` (private), `origin` is `git@github.com:chrseidel/round-about-game.git`, and the Check workflow runs on pushes and PRs to `main`. Do not commit `amplify_outputs.json` or `.amplify/`.
+**Current state:** Tasks 1–15 have separate commits. Vite app and tests work locally; an Amplify sandbox runs in `eu-central-1` using `AWS_PROFILE=chreisel`. Guest host/join and per-room AppSync authorization were exercised in the sandbox. This is **not a deployed playable multiplayer game**. Task 16 is launched; the owner's two-device check is open. The GitHub repository is `chrseidel/round-about-game` (private), `origin` is `git@github.com:chrseidel/round-about-game.git`, and the Check workflow runs on pushes and PRs to `main`. Do not commit `amplify_outputs.json` or `.amplify/`.
 
 ## 1. Establish maintainable project tooling
 
@@ -156,7 +156,7 @@ Work through tasks in order; commit each after verification. Design references: 
 
 ## 16. Configure automatic GitHub `main` deployment
 
-**Status:** In progress (branch `task-16-production`). Repository ready: `amplify.yml`, origins by branch, 14-day log retention; `main` protected (pull requests, `check` required, admins included). Launch waits for the Lambda quota increase (support case opened 2026-10-13), then the launch checklist in DEVELOPMENT_HANDOFF.md.
+**Status:** Launched 2026-10-13 at `https://round-about.chreisel.net` (Amplify app `round-about-game`, `d25cphjw1kxoxa`; PR #1). Verified: the merge build ran `npm run check` before `pipeline-deploy`; separate production stack; certificate valid; direct `/s/<code>` links load; CORS accepts only the production origins; production API smoke passed (events after the first-deploy warm-up, lobby, clue, reveal); a full turn in three browser tabs revealed within 228 ms. Remaining: the owner's two-device check from docs/SMOKE.md. A failing build blocking a deploy is guaranteed by `amplify.yml` order but has not been triggered deliberately.
 
 **Context:** After dev flow passes, production should update when a PR is merged to `main`, using Amplify as only deploy trigger.
 
