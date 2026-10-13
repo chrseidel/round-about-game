@@ -140,7 +140,7 @@ Work through tasks in order; commit each after verification. Design references: 
 
 **Context:** Twelve-card pile is a goal, not turn limit. Third lost life starts Overtime; wrong last card needs replacement. A player leaving may break game.
 
-**What needs to be done:** Connect `NEXT_TURN`, replacement draws, win/loss panels and host's **New session** action. New session produces a new SQUID and invite URL; old session expires. Maintain fixed Tipster during a game. Handle joining after start and visibility of finished state.
+**What needs to be done:** Connect `NEXT_TURN`, replacement draws, win/loss panels and host's **New session** action. New session produces a new SQUID and invite URL; old session expires. Maintain fixed Tipster during a game. Handle joining after start and visibility of finished state. `NEXT_TURN` must be refused before `revealAtUtc` and must reset `revealAtUtc` and `lockedBy` (from Task 13).
 
 **Acceptance criteria:** Complete multiplayer run wins only on correct placement with empty pile (even Overtime); wrong final draw allows replacement; subsequent Overtime miss/timeout loses; a new session has fresh roles/pile/cards and URL; no hidden number persists into result/next game.
 
