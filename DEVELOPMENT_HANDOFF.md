@@ -51,9 +51,10 @@
 - Every snapshot, including command responses, goes through `mergePrivate(latest, next)` in `web/turn.ts`: it drops older versions and keeps the Tipster's `currentDraw` across public events. A draw's public event can arrive before the Tipster's own response with the same version.
 - Decide anything status-related on `revealed(latest, serverNow)`, not on the raw snapshot: no event arrives at the reveal moment, so the raw snapshot keeps the pre-reveal status (this once broke the New game button).
 - Countdowns use `serverTimeUtc` from each snapshot (`secondsLeft`). The typed clue lives only in page memory; the field is rebuilt only when the card changes, so live updates keep focus and draft.
-- Since issue #4 the gaps are drawn as exits (short side roads with chevrons); the selected one blinks for everyone, including the Tipster, whose exits are disabled. Exits have an invisible tap area of at least 44 px.
-- The lobby's name tags counter-rotate against the circling cars. Both are rebuilt together with the same animation offset whenever the player list changes; reading the running animation's `currentTime` instead proved unreliable.
-- The reveal car (`renderDrive` in `web/board.ts`) runs once per `revealAtUtc` via the Web Animations API, so re-renders during the build-up do not restart it. Reduced motion skips it, the lobby's drive and the start sequence.
+- Since issue #4 the board is a pixel scene (`web/scene.ts`) fixed behind the page; empty placeholders (`.scene-spot` in entry/lobby, `#board` in the game layout) tell it where to fit the ring, so CSS decides the layout. Exits are real buttons (44 px tap area); the selected one blinks for everyone, including the Tipster, whose exits are disabled.
+- The scene draws immediately on every update and uses animation frames only for motion: browsers pause frames in background tabs, and the board must still be current there. `renderPlay` updates the panel before the board, because on phones the panel's height decides the board's size.
+- Sign size: `fitGame` (camera.ts) picks full or compact signs from a worst-case estimate; the scene then measures the drawn signs and steps up to compact signs, then extra board height (the page scrolls a little), if real signs collide. Checked with 18 cards at 1024 × 768 and 375 × 812: no overlapping signs, no covered exits.
+- The reveal car and the camera move run once per `revealAtUtc` / game start; reduced motion skips them and the lobby's circling cars.
 - The page reads the session code with `codeFromPath`, which tolerates `/s/<code>/`.
 
 **Testing**

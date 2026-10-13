@@ -1,32 +1,25 @@
 # Issue 4: the circle becomes a roundabout
 
-**Status:** concept and decisions approved 2026-10-13 in [issue #4](https://github.com/chrseidel/round-about-game/issues/4) (mockups on the owner's private design canvas). Frontend only; rules, API and backend unchanged.
+**Status:** concept and decisions approved 2026-10-13 in [issue #4](https://github.com/chrseidel/round-about-game/issues/4) (mockups on the owner's private design canvas). Frontend only; rules, API and backend unchanged. The design went through three rounds: a flat street-sign roundabout, then 8-bit isometric everywhere, then the final split below, because the isometric game board could not show 18 readable signs without covering exits.
 
 ## Decisions
 
-- Theme: a top-down roundabout. Cards are road signs around the ring, gaps are **exits**, the island carries the logo sign, the clue or the Tipster's secret number.
-- Wording: keep Tipster, Guesser, lives, clue; gaps become "exits" in all copy.
-- Background: grass with a subtle multi-colour gradient (sunlit yellow-green, faint warm glow, cool teal shade).
-- The legacy single-browser prototype (`app.js`, `web/panel.ts`, `game.test.cjs`) is deleted; without a configured backend the page explains that a game server is missing.
-- Overtime (decided here): hazard stripes (amber/ink) on the outer edge of the ring and an "Overtime" sign in the panel instead of cones.
-- Cards stay evenly spaced around the ring (as today), not placed by number: up to 15 signs must stay legible on a phone.
-
-## Screens
-
-- **Entry (host/join):** grass, a large roundabout sign with the name, the form on a white sign card.
-- **Lobby:** ring road with one car per player, driving counter-clockwise; name tags stay upright; the Tipster's car is yellow, your own tag is amber. Side (desktop) or bottom (phone): invite sign with copy button, Tipster sign with "Be the Tipster", traffic light with "Start game" (host) or who starts (others). Light is red until a Tipster and a Guesser are present, green when ready.
-- **Game:** top bar with logo, "Draw N", a green "N cards to go" sign and New game. Ring with signs and exits; the island shows the logo, "Bob is thinking of a word", the clue sign, or (Tipster in clue time) the secret number on a yellow diamond. Panel: lives as cones (or the Overtime sign), heading, text, traffic-light timer, clue field, buttons.
+- **One pixel world, two camera views.** Entry and lobby look at an isometric diorama (grass block with dirt sides, side roads, trees, banded sky). When the game starts, players who watched the lobby see the camera swing overhead (lights 1.3 s, camera 1.8 s); reloads and late joins start top-down. Reduced motion cuts straight to the board.
+- **One projection.** Everything on the ground is laid out top-down in ground units and drawn through `project(camera, x, y)` (rotation, scale, tilt, oval stretch). Upright things (signs, cars, name tags, trees) stand at their projected foot point. The camera move interpolates the camera's settings.
+- **Exits:** short roads between signs with a give-way line; the suggested exit blinks with chevrons; two taps lock, as before. Real buttons with names like "Exit between 33 Lighthouse and 66 Glacier".
+- **Signs never cover exits:** they stand just beyond the exits' ends, anchored by the edge nearest the ring.
+- **Capacity:** up to 18 cards (3 starting + 12 pile + 3 replacement draws after wrong guesses on the last card). The camera is fitted to the board region and card count: width sets the scale, spare height stretches the ring into an oval; full-size signs if they fit, compact ones otherwise, and extra board height (page scrolls) as a last resort. The scene measures the drawn signs and escalates if they still collide.
+- **Phones:** the ring becomes a tall oval; the island is too narrow for text, so the secret number and the clue show in the panel.
+- **Look:** Press Start 2P (logo, numbers, headings, buttons) and Pixelify Sans (text); limited palette (ink `#1B1A2E`, paper `#F2F0E6`, grass `#5DBB63`, asphalt `#4A4E69`, sign blue `#3366CC`, amber `#FFC845`, cone `#FF7A2F`, kerb `#E04848`); square pixel windows with hard shadows; crisp edges.
+- **Wording:** Tipster, Guesser, lives and clue stay; gaps are "exits".
+- The legacy single-browser prototype is removed; without a backend the page says that no game server is configured.
+- Overtime: hazard stripes on the ring's edge and the panel header.
 
 ## Motion
 
-1. Lobby cars circle (48 s per lap).
-2. Start: the lobby's light runs red, amber, green (~1.2 s) before the board appears, only for players who saw the lobby.
-3. Reveal: during the shared 2 s build-up a car drives at least one lap from the locked exit and leaves by the correct exit exactly at `revealAtUtc`.
-4. A lost life tips a cone over.
+Lobby cars circle (40 s per lap); start: traffic light, windows step away, camera move; reveal: a top-down car laps the ring during the 2 s build-up and leaves by the correct exit; a lost life tips a cone. All skipped with reduced motion.
 
-`prefers-reduced-motion`: no car motion, no start sequence delay, no reveal drive; the existing reveal bar is hidden as today.
+## Verification record
 
-## Testable pieces
-
-- `turnView` copy (exits), `lobbyView` (cars, Tipster sign, light, start hint for everyone), `islandView`, `exitLabel`, `correctExit` (index of the correct exit in the pre-reveal circle).
-- Accessibility: exits are buttons named "Exit between 33 Lighthouse and 66 Glacier"; focus ring; contrast ≥ 4.5:1 for body text.
+- Unit tests (`web/camera.test.ts`): projection, interpolation, arc-length spacing, fitting for 3/12/18 cards on desktop and phone boards with no overlapping signs.
+- Sandbox, three players (desktop host, phone Tipster, desktop Guesser): entry, lobby, camera move on the phone, draw with the secret in the phone panel, clue, two-tap exit, reveal, reload into the top-down view, Overtime state. 18 cards measured in the running app at 1024 × 768 and 375 × 812: 0 overlapping signs, 0 signs off screen, 0 covered exits, exits ≥ 56 px apart on the phone.
