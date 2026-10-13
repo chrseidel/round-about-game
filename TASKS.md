@@ -2,7 +2,7 @@
 
 Work through tasks in order; commit each after verification. Design references: [ARCHITECTURE.md](ARCHITECTURE.md) and [INFRASTRUCTURE.md](INFRASTRUCTURE.md).
 
-**Current state:** Tasks 1–13 have separate commits. Vite app and tests work locally; an Amplify sandbox runs in `eu-central-1` using `AWS_PROFILE=chreisel`. Guest host/join and per-room AppSync authorization were exercised in the sandbox. This is **not a deployed playable multiplayer game**. Tasks 14–16 are pending. The GitHub repository is `chrseidel/round-about-game` (private), `origin` is `git@github.com:chrseidel/round-about-game.git`, and the Check workflow runs on pushes and PRs to `main`. Do not commit `amplify_outputs.json` or `.amplify/`.
+**Current state:** Tasks 1–14 have separate commits. Vite app and tests work locally; an Amplify sandbox runs in `eu-central-1` using `AWS_PROFILE=chreisel`. Guest host/join and per-room AppSync authorization were exercised in the sandbox. This is **not a deployed playable multiplayer game**. Tasks 15–16 are pending. The GitHub repository is `chrseidel/round-about-game` (private), `origin` is `git@github.com:chrseidel/round-about-game.git`, and the Check workflow runs on pushes and PRs to `main`. Do not commit `amplify_outputs.json` or `.amplify/`.
 
 ## 1. Establish maintainable project tooling
 
@@ -136,7 +136,7 @@ Work through tasks in order; commit each after verification. Design references: 
 
 ## 14. Complete game progression and restart path
 
-**Status:** Pending.
+**Status:** Completed; `b7aeab6`. Design: [docs/superpowers/specs/2026-10-13-task-14-progression-design.md](docs/superpowers/specs/2026-10-13-task-14-progression-design.md). Verified 2026-10-13 with `scripts/check-progress.ts` and a three-tab browser run: next card, a won game, and the new-session handoff with one-click Join.
 
 **Context:** Twelve-card pile is a goal, not turn limit. Third lost life starts Overtime; wrong last card needs replacement. A player leaving may break game.
 
