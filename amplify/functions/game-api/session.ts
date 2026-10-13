@@ -144,7 +144,8 @@ export function authenticate(
 
 export class CommandError extends Error {
   constructor(
-    readonly code: "FORBIDDEN" | "INVALID_PHASE" | "INVALID_INPUT",
+    readonly code:
+      "FORBIDDEN" | "INVALID_PHASE" | "INVALID_INPUT" | "STALE_VERSION",
     message: string,
   ) {
     super(message);
@@ -231,5 +232,58 @@ export function submitClue(
     ...session,
     version: session.version + 1,
     game: apply(sent, { type: "BEGIN_GUESS" }, now),
+  };
+}
+
+const NOT_GUESSING = "Guessing is not open right now.";
+
+/** Any Guesser moves the team's selection; the last click wins. */
+export function chooseGap(
+  session: Session,
+  participantId: string,
+  index: number,
+): Session {
+  if (participantId === session.tipsterId)
+    throw new CommandError("FORBIDDEN", "The Tipster can't choose a gap.");
+  const { game } = session;
+  if (session.status !== "playing" || game.phase !== "guess")
+    throw new CommandError("INVALID_PHASE", NOT_GUESSING);
+  if (!Number.isInteger(index) || index < 0 || index >= game.cards.length)
+    throw new CommandError("INVALID_INPUT", "Choose a gap in the circle.");
+  if (game.selectedGap === index) return session;
+  // Deadlines are already applied by reconcile before every command, so the
+  // reducer's own deadline guard does not need the real time here.
+  return {
+    ...session,
+    version: session.version + 1,
+    game: apply(game, { type: "SELECT_GAP", index }, 0),
+  };
+}
+
+/**
+ * Locks the team's selection, but only the one the player actually saw:
+ * any change since then (version) or a different gap is rejected.
+ */
+export function lockGap(
+  session: Session,
+  participantId: string,
+  index: number,
+  expectedVersion: number,
+  now: number,
+): Session {
+  if (participantId === session.tipsterId)
+    throw new CommandError("FORBIDDEN", "The Tipster can't lock a gap.");
+  const { game } = session;
+  if (session.status !== "playing" || game.phase !== "guess")
+    throw new CommandError("INVALID_PHASE", NOT_GUESSING);
+  if (index !== game.selectedGap || expectedVersion !== session.version)
+    throw new CommandError(
+      "STALE_VERSION",
+      "The selection changed. Tap again to lock in.",
+    );
+  return {
+    ...session,
+    version: session.version + 1,
+    game: apply(game, { type: "LOCK_GAP" }, now),
   };
 }

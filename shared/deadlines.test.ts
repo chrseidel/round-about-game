@@ -131,3 +131,12 @@ test("stale, early and due timeout messages", () => {
     action: "apply",
   });
 });
+
+test("selected but unlocked gap at Overtime expiry is a miss", () => {
+  const session = overtime();
+  session.game = { ...session.game, selectedGap: 1 };
+  const result = reconcile(session, 5_000).game.lastResult;
+  assert.equal(result?.timedOut, true);
+  assert.equal(result?.correct, false);
+  assert.equal(result?.lost, true);
+});

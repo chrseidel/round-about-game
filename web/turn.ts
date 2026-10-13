@@ -1,4 +1,4 @@
-import type { CallerSnapshot } from "../shared/protocol.ts";
+import type { CallerSnapshot, SessionCommand } from "../shared/protocol.ts";
 
 export type TurnView = {
   heading: string;
@@ -71,14 +71,33 @@ export function turnView(
           )
         : view(
             "Choose a gap.",
-            `The word is ${snapshot.clue}.`,
+            snapshot.selectedGap === null
+              ? `The word is ${snapshot.clue}.`
+              : "Tap ⌛ again to lock it in.",
             "none",
             "DISCUSSION",
           );
-    case "result":
-      return snapshot.result?.discarded
-        ? view("Card discarded", "Time ran out.")
-        : view("Result", "");
+    case "result": {
+      const result = snapshot.result;
+      if (!result || result.discarded)
+        return view("Card discarded", "Time ran out.");
+      const word = (number?: number) =>
+        snapshot.cards.find((card) => card.number === number)?.word ?? "";
+      const placed = `${snapshot.clue} · ${result.number} sits between ${word(result.lower)} and ${word(result.upper)}.`;
+      const after = result.lost
+        ? " Overtime ended."
+        : result.correct
+          ? ""
+          : " Life lost.";
+      return view(
+        result.correct
+          ? "Correct!"
+          : result.timedOut
+            ? "Time ran out"
+            : "Wrong gap",
+        placed + after,
+      );
+    }
     default:
       return view("", "");
   }
@@ -103,6 +122,22 @@ export function mergePrivate(
   )
     return { ...next, currentDraw: previous.currentDraw };
   return next;
+}
+
+/**
+ * What a click on a gap means for this player: Guessers choose a gap, and a
+ * click on the gap already shown as the team's selection locks it.
+ */
+export function gapCommand(
+  snapshot: CallerSnapshot,
+  participantId: string,
+  index: number,
+): SessionCommand | null {
+  if (participantId === snapshot.tipsterId || snapshot.phase !== "guess")
+    return null;
+  return index === snapshot.selectedGap
+    ? { type: "LOCK_GAP", index }
+    : { type: "CHOOSE_GAP", index };
 }
 
 /** Whole seconds left on the server's clock, given the browser's clock offset. */
@@ -179,6 +214,12 @@ export function renderTurn(
       send.id = "sayButton";
       send.addEventListener("click", actions.send);
       content.append(label, input, note, send);
+    } else {
+      // Command errors (e.g. a stale lock) show here outside the word field.
+      const note = element("p", "stage-note", "");
+      note.id = "clueNote";
+      note.setAttribute("role", "alert");
+      content.append(note);
     }
   }
   const note = document.getElementById("clueNote");

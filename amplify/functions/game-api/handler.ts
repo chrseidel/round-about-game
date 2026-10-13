@@ -6,7 +6,12 @@ import { GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { documentClient } from "../shared/db.ts";
 import { projectCaller, type Session } from "../../../shared/protocol.ts";
 import { reconcile } from "../../../shared/deadlines.ts";
-import { applyCommand, parseCommandRequest } from "./command.ts";
+import {
+  alreadyApplied,
+  applyCommand,
+  parseCommandRequest,
+  rememberCommand,
+} from "./command.ts";
 import {
   authenticate,
   CommandError,
@@ -62,7 +67,12 @@ function bearer(event: Parameters<APIGatewayProxyHandlerV2>[0]) {
   return event.headers.authorization?.replace(/^Bearer\s+/i, "");
 }
 
-const ERROR_STATUS = { FORBIDDEN: 403, INVALID_INPUT: 400, INVALID_PHASE: 409 };
+const ERROR_STATUS = {
+  FORBIDDEN: 403,
+  INVALID_INPUT: 400,
+  INVALID_PHASE: 409,
+  STALE_VERSION: 409,
+};
 
 /**
  * Applies a command to the latest state. A version conflict reloads and
@@ -79,23 +89,42 @@ async function runCommand(
       message: "Join this session first.",
     });
   let session = loaded;
+  const fail = (error: CommandError) => {
+    const now = Date.now();
+    return response(ERROR_STATUS[error.code], {
+      code: error.code,
+      message: error.message,
+      snapshot: projectCaller(reconcile(session, now), participantId, now),
+    });
+  };
+  let request;
+  try {
+    request = parseCommandRequest(input(event));
+  } catch (error) {
+    if (error instanceof CommandError) return fail(error);
+    throw error;
+  }
   for (let attempt = 0; attempt < 3; attempt++) {
+    // A retried command (same ID) answers with the current state.
+    if (alreadyApplied(session, request.commandId)) {
+      const now = Date.now();
+      return response(
+        200,
+        projectCaller(reconcile(session, now), participantId, now),
+      );
+    }
     let next: Session;
     try {
       next = applyCommand(
         session,
         participantId,
-        parseCommandRequest(input(event)).command,
+        request.command,
+        request.expectedVersion,
         Date.now(),
       );
     } catch (error) {
       if (!(error instanceof CommandError)) throw error;
-      const now = Date.now();
-      return response(ERROR_STATUS[error.code], {
-        code: error.code,
-        message: error.message,
-        snapshot: projectCaller(reconcile(session, now), participantId, now),
-      });
+      return fail(error);
     }
     if (next === session)
       return response(200, projectCaller(session, participantId, Date.now()));
@@ -103,7 +132,7 @@ async function runCommand(
       await db.send(
         new PutCommand({
           TableName: table,
-          Item: next,
+          Item: rememberCommand(next, request.commandId),
           ConditionExpression: "#version = :version",
           ExpressionAttributeNames: { "#version": "version" },
           ExpressionAttributeValues: { ":version": session.version },

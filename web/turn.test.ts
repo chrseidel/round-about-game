@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { CallerSnapshot } from "../shared/protocol.ts";
-import { mergePrivate, secondsLeft, turnView } from "./turn.ts";
+import { gapCommand, mergePrivate, secondsLeft, turnView } from "./turn.ts";
 
 function snapshot(overrides: Partial<CallerSnapshot> = {}): CallerSnapshot {
   return {
@@ -98,4 +98,71 @@ test("countdown follows server time", () => {
   assert.equal(secondsLeft(20_000, 5_000, 10_000), 5);
   assert.equal(secondsLeft(20_000, 0, 25_000), 0);
   assert.equal(secondsLeft(null, 0, 0), 0);
+});
+
+const guessing = (overrides: Partial<CallerSnapshot> = {}) =>
+  snapshot({
+    phase: "guess",
+    clue: "river",
+    selectedGap: 1,
+    cards: [
+      { number: 0, word: "Moss" },
+      { number: 33, word: "Lantern" },
+      { number: 66, word: "Orbit" },
+    ],
+    ...overrides,
+  });
+
+test("gap clicks choose or lock", () => {
+  assert.deepEqual(gapCommand(guessing(), "alice", 2), {
+    type: "CHOOSE_GAP",
+    index: 2,
+  });
+  assert.deepEqual(gapCommand(guessing(), "alice", 1), {
+    type: "LOCK_GAP",
+    index: 1,
+  });
+  assert.equal(gapCommand(guessing(), "bob", 2), null);
+  assert.equal(gapCommand(guessing({ phase: "tip" }), "alice", 2), null);
+});
+
+test("selection hint", () => {
+  assert.equal(
+    turnView(guessing(), "alice").description,
+    "Tap ⌛ again to lock it in.",
+  );
+  assert.equal(
+    turnView(guessing({ selectedGap: null }), "alice").description,
+    "The word is river.",
+  );
+});
+
+test("result texts", () => {
+  const result = (r: Partial<NonNullable<CallerSnapshot["result"]>>) =>
+    guessing({
+      phase: "result",
+      result: {
+        correct: true,
+        lost: false,
+        discarded: false,
+        timedOut: false,
+        number: 42,
+        lower: 33,
+        upper: 66,
+        ...r,
+      },
+    });
+  const correct = turnView(result({}), "alice");
+  assert.equal(correct.heading, "Correct!");
+  assert.equal(
+    correct.description,
+    "river · 42 sits between Lantern and Orbit.",
+  );
+  const wrong = turnView(result({ correct: false }), "bob");
+  assert.equal(wrong.heading, "Wrong gap");
+  assert.ok(wrong.description.endsWith(" Life lost."));
+  const lost = turnView(result({ correct: false, lost: true }), "alice");
+  assert.ok(lost.description.endsWith("Overtime ended."));
+  const late = turnView(result({ correct: false, timedOut: true }), "alice");
+  assert.equal(late.heading, "Time ran out");
 });

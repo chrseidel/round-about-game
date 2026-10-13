@@ -1,14 +1,23 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { PROTOCOL_VERSION } from "../../../shared/protocol.ts";
-import { applyCommand, parseCommandRequest } from "./command.ts";
+import {
+  alreadyApplied,
+  applyCommand,
+  parseCommandRequest,
+  rememberCommand,
+} from "./command.ts";
+import { projectPublic } from "../../../shared/protocol.ts";
 import { apply } from "../../../game/rules.ts";
 import {
+  chooseGap,
   claimTipster,
   CommandError,
+  drawCard,
   joinSession,
   newSession,
   startGame,
+  submitClue,
 } from "./session.ts";
 
 const valid = {
@@ -58,12 +67,13 @@ test("parse accepts a valid claim", () => {
 test("apply dispatches and rejects later commands", () => {
   const { session, participantId } = newSession("Alice", 10_000);
   assert.equal(
-    applyCommand(session, participantId, { type: "CLAIM_TIPSTER" }, 10_000)
+    applyCommand(session, participantId, { type: "CLAIM_TIPSTER" }, 0, 10_000)
       .tipsterId,
     participantId,
   );
   assert.throws(
-    () => applyCommand(session, participantId, { type: "NEXT_TURN" }, 10_000),
+    () =>
+      applyCommand(session, participantId, { type: "NEXT_TURN" }, 0, 10_000),
     /Not available yet\./,
   );
 });
@@ -83,8 +93,70 @@ test("command after an overdue deadline is judged on the expired state", () => {
     drawing,
     hosted.participantId,
     { type: "START" },
+    0,
     20_000,
   );
   assert.equal(next.game.phase, "grace");
   assert.equal(next.version, drawing.version + 1);
+});
+
+test("parse requires gap indexes", () => {
+  invalidInput(() =>
+    parseCommandRequest({ ...valid, command: { type: "CHOOSE_GAP" } }),
+  );
+  invalidInput(() =>
+    parseCommandRequest({
+      ...valid,
+      command: { type: "LOCK_GAP", index: "1" },
+    }),
+  );
+  invalidInput(() =>
+    parseCommandRequest({
+      ...valid,
+      expectedVersion: "3",
+      command: { type: "LOCK_GAP", index: 1 },
+    }),
+  );
+});
+
+test("retry memory keeps the last 20 commands", () => {
+  let { session } = newSession("Alice", 0);
+  for (let i = 1; i <= 21; i++) session = rememberCommand(session, `c${i}`);
+  assert.deepEqual(
+    session.recentCommands,
+    Array.from({ length: 20 }, (_, i) => `c${i + 2}`),
+  );
+  assert.equal(alreadyApplied(session, "c21"), true);
+  assert.equal(alreadyApplied(session, "c1"), false);
+  assert.equal("recentCommands" in projectPublic(session, 0), false);
+});
+
+test("apply passes the expected version to lock", () => {
+  const hosted = newSession("Alice", 0);
+  const bob = joinSession(hosted.session, "Bob", 0);
+  const carol = joinSession(bob.session, "Carol", 0);
+  let session = startGame(
+    claimTipster(carol.session, bob.participantId),
+    hosted.participantId,
+  );
+  session = drawCard(session, bob.participantId, 0);
+  session = submitClue(session, bob.participantId, "river", 1_000);
+  session = chooseGap(session, hosted.participantId, 1);
+  const lock = { type: "LOCK_GAP" as const, index: 1 };
+  assert.throws(
+    () =>
+      applyCommand(
+        session,
+        carol.participantId,
+        lock,
+        session.version - 1,
+        2_000,
+      ),
+    /The selection changed/,
+  );
+  assert.equal(
+    applyCommand(session, carol.participantId, lock, session.version, 2_000)
+      .game.phase,
+    "result",
+  );
 });

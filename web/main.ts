@@ -53,6 +53,7 @@ async function setupSessionEntry() {
     let offset = 0;
     let draft = "";
     let error = "";
+    let gapInFlight = false;
     const render = () => {
       if (!latest) return;
       if (latest.status === "lobby") {
@@ -66,6 +67,14 @@ async function setupSessionEntry() {
           error = clueError(draft, latest!.cards);
           if (error) render();
           else void send({ type: "SUBMIT_CLUE", clue: draft });
+        },
+        gap: (command) => {
+          // One gap command at a time; the next click uses the confirmed state.
+          if (gapInFlight) return;
+          gapInFlight = true;
+          void send(command).finally(() => {
+            gapInFlight = false;
+          });
         },
         edit: (value) => {
           draft = value;

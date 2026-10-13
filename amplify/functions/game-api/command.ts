@@ -6,9 +6,11 @@ import {
 } from "../../../shared/protocol.ts";
 import { reconcile } from "../../../shared/deadlines.ts";
 import {
+  chooseGap,
   claimTipster,
   CommandError,
   drawCard,
+  lockGap,
   startGame,
   submitClue,
 } from "./session.ts";
@@ -26,7 +28,12 @@ export function parseCommandRequest(value: unknown): CommandRequest {
     typeof request.command !== "object" ||
     typeof request.command.type !== "string" ||
     (request.command.type === "SUBMIT_CLUE" &&
-      typeof (request.command as { clue?: unknown }).clue !== "string")
+      typeof (request.command as { clue?: unknown }).clue !== "string") ||
+    ((request.command.type === "CHOOSE_GAP" ||
+      request.command.type === "LOCK_GAP") &&
+      !Number.isInteger((request.command as { index?: unknown }).index)) ||
+    (request.command.type === "LOCK_GAP" &&
+      !Number.isInteger(request.expectedVersion))
   )
     throw new CommandError("INVALID_INPUT", "Invalid command.");
   return request as CommandRequest;
@@ -37,6 +44,7 @@ export function applyCommand(
   session: Session,
   participantId: string,
   command: SessionCommand,
+  expectedVersion: number,
   now: number,
 ): Session {
   const current = reconcile(session, now);
@@ -49,7 +57,33 @@ export function applyCommand(
       return drawCard(current, participantId, now);
     case "SUBMIT_CLUE":
       return submitClue(current, participantId, command.clue, now);
+    case "CHOOSE_GAP":
+      return chooseGap(current, participantId, command.index);
+    case "LOCK_GAP":
+      // If reconcile expired the guess, lockGap refuses on the phase first.
+      return lockGap(
+        current,
+        participantId,
+        command.index,
+        expectedVersion,
+        now,
+      );
     default:
       throw new CommandError("INVALID_INPUT", "Not available yet.");
   }
+}
+
+const REMEMBERED_COMMANDS = 20;
+
+export function alreadyApplied(session: Session, commandId: string): boolean {
+  return session.recentCommands?.includes(commandId) ?? false;
+}
+
+export function rememberCommand(session: Session, commandId: string): Session {
+  return {
+    ...session,
+    recentCommands: [...(session.recentCommands ?? []), commandId].slice(
+      -REMEMBERED_COMMANDS,
+    ),
+  };
 }

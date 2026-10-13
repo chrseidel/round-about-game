@@ -15,6 +15,8 @@ export type Session = {
   turnId: string;
   revealAtUtc: number | null;
   expiresAt: number;
+  /** IDs of the last applied commands, so retries are not applied twice. */
+  recentCommands?: string[];
 };
 
 export type PublicResult = Pick<

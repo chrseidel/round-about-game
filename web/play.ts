@@ -1,6 +1,7 @@
 import type { CallerSnapshot } from "../shared/protocol.ts";
 import { renderBoard } from "./board.ts";
-import { renderTurn, turnView, type TurnActions } from "./turn.ts";
+import { gapCommand, renderTurn, turnView, type TurnActions } from "./turn.ts";
+import type { SessionCommand } from "../shared/protocol.ts";
 
 const find = (id: string) => document.getElementById(id)!;
 
@@ -10,7 +11,7 @@ export function renderPlay(
   participantId: string,
   draft: string,
   error: string,
-  actions: TurnActions,
+  actions: TurnActions & { gap(command: SessionCommand): void },
 ) {
   find("roundLabel").textContent =
     `DRAW ${String(snapshot.turn).padStart(2, "0")}`;
@@ -34,13 +35,22 @@ export function renderPlay(
       ? "Overtime: one wrong answer ends the game"
       : `${lives} lives remaining`,
   );
-  renderBoard({
-    cards: snapshot.cards,
-    phase: snapshot.phase,
-    selectedGap: snapshot.selectedGap,
-    recent: null,
-    clue: snapshot.clue ?? "",
-    pile: snapshot.pile,
-  });
+  const canChoose = gapCommand(snapshot, participantId, 0) !== null;
+  renderBoard(
+    {
+      cards: snapshot.cards,
+      phase: snapshot.phase,
+      selectedGap: snapshot.selectedGap,
+      recent: null,
+      clue: snapshot.clue ?? "",
+      pile: snapshot.pile,
+    },
+    canChoose
+      ? (index) => {
+          const command = gapCommand(snapshot, participantId, index);
+          if (command) actions.gap(command);
+        }
+      : undefined,
+  );
   renderTurn(turnView(snapshot, participantId), draft, error, actions);
 }

@@ -4,7 +4,9 @@ import {
   authenticate,
   claimTipster,
   CommandError,
+  chooseGap,
   drawCard,
+  lockGap,
   joinSession,
   newSession,
   nickname,
@@ -153,6 +155,7 @@ function playing() {
   const { session, host, bob, carol } = lobby();
   return {
     session: startGame(claimTipster(session, bob), host),
+    host,
     bob,
     carol,
   };
@@ -218,5 +221,81 @@ test("clue in grace is accepted, after expiry it is too late", () => {
     () => submitClue(reconcile(drawn, 24_000), bob, "river", 24_000),
     "INVALID_PHASE",
     "Time is up for this card.",
+  );
+});
+
+/** A started game in the guess phase: Bob drew at 0 and sent "river". */
+function guessing(lives = 3) {
+  const { session, host, bob, carol } = playing();
+  const drawn = drawCard(session, bob, 0);
+  const ready = { ...drawn, game: { ...drawn.game, lives } };
+  return { session: submitClue(ready, bob, "river", 1_000), host, bob, carol };
+}
+
+test("choose: Guessers only, while guessing, valid gaps", () => {
+  const { session, host, bob } = guessing();
+  rejects(
+    () => chooseGap(session, bob, 1),
+    "FORBIDDEN",
+    "The Tipster can't choose a gap.",
+  );
+  const { session: started, host: alice, bob: tipster } = playing();
+  rejects(
+    () => chooseGap(drawCard(started, tipster, 0), alice, 1),
+    "INVALID_PHASE",
+    "Guessing is not open right now.",
+  );
+  for (const index of [-1, 3, 1.5])
+    rejects(
+      () => chooseGap(session, host, index),
+      "INVALID_INPUT",
+      "Choose a gap in the circle.",
+    );
+  const chosen = chooseGap(session, host, 1);
+  assert.equal(chosen.game.selectedGap, 1);
+  assert.equal(chosen.game.phase, "guess");
+  assert.equal(chosen.version, session.version + 1);
+  assert.equal(chooseGap(chosen, host, 1), chosen);
+});
+
+test("choose keeps the Overtime deadline", () => {
+  const { session, host } = guessing(0);
+  assert.equal(session.game.deadline, 21_000);
+  assert.equal(chooseGap(session, host, 2).game.deadline, 21_000);
+});
+
+test("lock: strict and once", () => {
+  const { session, host, bob, carol } = guessing();
+  const chosen = chooseGap(session, host, 1);
+  rejects(
+    () => lockGap(chosen, bob, 1, chosen.version, 2_000),
+    "FORBIDDEN",
+    "The Tipster can't lock a gap.",
+  );
+  const stale = "The selection changed. Tap again to lock in.";
+  rejects(
+    () => lockGap(chosen, carol, 2, chosen.version, 2_000),
+    "STALE_VERSION",
+    stale,
+  );
+  rejects(
+    () => lockGap(chosen, carol, 1, chosen.version - 1, 2_000),
+    "STALE_VERSION",
+    stale,
+  );
+  const locked = lockGap(chosen, carol, 1, chosen.version, 2_000);
+  assert.equal(locked.game.phase, "result");
+  assert.equal(locked.game.lastResult?.guessedGap, 1);
+  assert.equal(locked.game.cards.length, 4);
+  assert.equal(locked.version, chosen.version + 1);
+});
+
+test("lock after Overtime expiry is refused", () => {
+  const { session, host, carol } = guessing(0);
+  const chosen = chooseGap(session, host, 1);
+  rejects(
+    () => lockGap(reconcile(chosen, 21_000), carol, 1, chosen.version, 21_000),
+    "INVALID_PHASE",
+    "Guessing is not open right now.",
   );
 });
