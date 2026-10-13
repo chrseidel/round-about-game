@@ -1,0 +1,25 @@
+# Amplify Hosting build for every connected branch (production: main).
+# A failing check or build stops the job; the previous version stays live.
+version: 1
+backend:
+  phases:
+    build:
+      commands:
+        - npm ci
+        - npm run check
+        - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
+frontend:
+  phases:
+    build:
+      commands:
+        # The browser reads its endpoints from /amplify_outputs.json at startup.
+        - npx ampx generate outputs --branch $AWS_BRANCH --app-id $AWS_APP_ID
+        - npm run build
+        - cp amplify_outputs.json dist/
+  artifacts:
+    baseDirectory: dist
+    files:
+      - "**/*"
+  cache:
+    paths:
+      - node_modules/**/*

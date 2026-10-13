@@ -5,6 +5,7 @@ export const gameApi = defineFunction({
   resourceGroupName: "round-about-game",
   entry: "./handler.ts",
   runtime: 22,
+  logging: { retention: "2 weeks" },
   timeoutSeconds: 10,
   environment: { SESSION_TABLE: "" },
 });
