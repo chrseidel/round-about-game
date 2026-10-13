@@ -1,4 +1,5 @@
 import type { CallerSnapshot, SessionCommand } from "../shared/protocol.ts";
+import { DIAMOND_SVG } from "./art.ts";
 
 export type TurnView = {
   heading: string;
@@ -323,7 +324,7 @@ export function renderTurn(
   else delete find("turnHeading").dataset.tone;
   find("turnDescription").textContent = view.description;
   const content = find("turnContent");
-  const key = `${view.mode}:${view.secret ?? ""}:${view.timerLabel}:${view.revealAtUtc ?? ""}:${view.drawLabel}`;
+  const key = `${view.mode}:${view.secret ?? ""}:${view.timerLabel}:${view.revealAtUtc ?? ""}:${view.drawLabel}:${view.clue ?? ""}`;
   if (content.dataset.key !== key) {
     content.dataset.key = key;
     content.replaceChildren();
@@ -331,6 +332,22 @@ export function renderTurn(
       const bar = element("div", "reveal-progress");
       bar.append(element("div", "reveal-fill"));
       content.append(bar);
+    }
+    // Phones: the island is too narrow, so the secret and the clue show here.
+    if (view.secret !== null) {
+      const secret = element("div", "panel-secret narrow-only");
+      const diamond = element("span", "secret-diamond");
+      diamond.innerHTML = DIAMOND_SVG;
+      diamond.append(element("span", "secret-number", String(view.secret)));
+      secret.append(
+        diamond,
+        element("span", "", "Your secret number. Only you see it."),
+      );
+      content.append(secret);
+    } else if (view.clue && view.mode !== "join") {
+      const clue = element("p", "panel-clue narrow-only", "Clue: ");
+      clue.append(element("strong", "", view.clue));
+      content.append(clue);
     }
     if (view.mode === "draw") {
       const button = element("button", "button primary", view.drawLabel);

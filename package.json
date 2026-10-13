@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "node --import tsx --test game/rules.test.ts shared/protocol.test.ts shared/deadlines.test.ts amplify/functions/game-api/session.test.ts amplify/functions/game-api/command.test.ts amplify/functions/event-auth/handler.test.ts amplify/functions/event-publisher/handler.test.ts amplify/functions/deadline-scheduler/handler.test.ts amplify/functions/timeout/handler.test.ts amplify/functions/shared/db.test.ts web/events.test.ts web/lobby.test.ts web/turn.test.ts web/session-api.test.ts scripts/smoke-steps.test.ts amplify/origins.test.ts",
+    "test": "node --import tsx --test game/rules.test.ts shared/protocol.test.ts shared/deadlines.test.ts amplify/functions/game-api/session.test.ts amplify/functions/game-api/command.test.ts amplify/functions/event-auth/handler.test.ts amplify/functions/event-publisher/handler.test.ts amplify/functions/deadline-scheduler/handler.test.ts amplify/functions/timeout/handler.test.ts amplify/functions/shared/db.test.ts web/events.test.ts web/lobby.test.ts web/turn.test.ts web/camera.test.ts web/session-api.test.ts scripts/smoke-steps.test.ts amplify/origins.test.ts",
     "typecheck": "tsc --noEmit",
     "format:check": "prettier --check \"{web,game,shared,amplify,scripts}/**/*.{ts,js}\" \"*.json\" \"vite.config.ts\"",
     "check": "npm run format:check && npm run typecheck && npm test && npm run build",

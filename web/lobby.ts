@@ -1,5 +1,6 @@
 import type { PublicSnapshot } from "../shared/protocol.ts";
-import { CAR_COLORS, SIGN_SVG, TIPSTER_CAR, carSvg } from "./art.ts";
+import { DIAMOND_SVG } from "./art.ts";
+import { showLobby } from "./scene.ts";
 
 export type LobbyCar = {
   id: string;
@@ -79,41 +80,23 @@ export function lobbyView(
   };
 }
 
-/** The lobby's roundabout: road, painted name and the sign on the island. */
-const LOBBY_RING =
-  '<div class="lobby-ring">' +
-  '<svg class="lobby-road" viewBox="0 0 600 600" aria-hidden="true">' +
-  '<rect x="-400" y="264" width="1400" height="72" class="road-fill"/>' +
-  '<rect x="264" y="-400" width="72" height="1400" class="road-fill"/>' +
-  '<circle cx="300" cy="300" r="262" class="road-surface" stroke-width="76"/>' +
-  '<circle cx="300" cy="300" r="298" class="road-edge"/>' +
-  '<circle cx="300" cy="300" r="262" class="lane-marking"/>' +
-  '<circle cx="300" cy="300" r="222" class="island-grass"/>' +
-  '<circle cx="300" cy="300" r="224" class="kerb kerb-white"/>' +
-  '<circle cx="300" cy="300" r="224" class="kerb kerb-red"/>' +
-  '<defs><path id="islandText" d="M 300 300 m -178 0 a 178 178 0 1 1 356 0 a 178 178 0 1 1 -356 0"/></defs>' +
-  '<text class="painted"><textPath href="#islandText" startOffset="2%">ROUND ABOUT</textPath></text>' +
-  '<text class="painted"><textPath href="#islandText" startOffset="52%">ROUND ABOUT</textPath></text>' +
-  "</svg>" +
-  `<div class="lobby-sign">${SIGN_SVG}</div>` +
-  '<div class="cars" id="lobbyCars"></div></div>';
-
 export const LOBBY_HTML =
   '<div class="lobby">' +
-  LOBBY_RING +
+  '<div class="scene-spot" aria-hidden="true"></div>' +
   '<div class="lobby-side">' +
-  '<section class="sign sign-blue invite" aria-label="Invite">' +
-  '<div class="sign-inner"><p class="sign-label">Invite friends with this code</p>' +
+  '<section class="window window-blue invite" aria-label="Invite">' +
+  '<p class="window-label">Invite friends with this code</p>' +
   '<p class="invite-code" id="inviteCode"></p>' +
-  '<button id="copyInvite" class="button light" type="button">Copy invite link</button></div></section>' +
-  '<section class="sign sign-white tipster-sign" aria-label="Tipster">' +
-  '<div class="tipster-row"><svg class="diamond" viewBox="0 0 54 54" aria-hidden="true"><polygon points="27,3 51,27 27,51 3,27"/><text x="27" y="34" text-anchor="middle">?</text></svg>' +
-  '<div><p class="sign-title" id="tipsterTitle"></p><p class="sign-text" id="tipsterText"></p></div></div>' +
+  '<button id="copyInvite" class="button light" type="button">Copy invite link</button></section>' +
+  '<section class="window tipster-window" aria-label="Tipster">' +
+  `<div class="tipster-row"><span class="diamond-badge">${DIAMOND_SVG}<span>?</span></span>` +
+  '<p class="window-title" id="tipsterTitle"></p></div>' +
+  '<p class="window-text" id="tipsterText"></p>' +
   '<button id="claimTipster" class="button amber" type="button" hidden>Be the Tipster</button></section>' +
-  '<section class="sign sign-white start-sign" aria-label="Start">' +
+  '<section class="window start-window" aria-label="Start">' +
   '<div class="traffic-light" id="lobbyLight" aria-hidden="true"><span class="lamp red"></span><span class="lamp amber"></span><span class="lamp green"></span></div>' +
   '<div class="start-body"><button id="startGame" class="button go" type="button" hidden>Start game</button>' +
-  '<p class="sign-text" id="startHint"></p></div></section>' +
+  '<p class="window-text" id="startHint"></p></div></section>' +
   '<p id="commandError" class="command-error" role="alert"></p>' +
   '<ul class="sr-only" id="lobbyPlayers" aria-label="Players"></ul>' +
   '<p id="lobbyStarted" hidden></p>' +
@@ -122,32 +105,37 @@ export const LOBBY_HTML =
 
 /** The first screen: nickname, game code, host or join. */
 export const ENTRY_HTML =
-  '<form id="sessionForm" class="entry">' +
-  `<div class="entry-logo">${SIGN_SVG}<h1>Round About</h1></div>` +
-  '<div class="sign sign-white entry-form">' +
-  '<p class="sign-text">A word game for friends on a video call: one player gives clues, everyone else picks the exit.</p>' +
+  '<form id="sessionForm" class="lobby entry">' +
+  '<div class="scene-spot" aria-hidden="true"></div>' +
+  '<div class="lobby-side">' +
+  '<h1 class="title">Round About</h1>' +
+  '<div class="window entry-form">' +
+  '<p class="window-text">A word game for friends on a video call: one player gives clues, everyone else picks the exit.</p>' +
   '<label>Nickname<input id="nickname" maxlength="24" required autocomplete="nickname" /></label>' +
   '<label>Game code<input id="sessionCode" placeholder="Code or invite link" autocomplete="off" /></label>' +
   '<div class="session-actions"><button class="button primary" type="submit" name="action" value="host">Host a game</button>' +
   '<button class="button light" type="submit" name="action" value="join">Join a game</button></div>' +
-  '<p id="sessionError" class="command-error" role="alert"></p></div></form>';
+  '<p id="sessionError" class="command-error" role="alert"></p></div></div></form>';
 
 /** Shown when the page has no game server to talk to. */
 export const NO_SERVER_HTML =
-  '<div class="entry">' +
-  `<div class="entry-logo">${SIGN_SVG}<h1>Round About</h1></div>` +
-  '<div class="sign sign-white entry-form"><p class="sign-title">No game server is configured</p>' +
-  '<p class="sign-text">This copy of the game cannot reach a backend. For local development, deploy a sandbox with <code>npx ampx sandbox</code>.</p></div></div>';
-
-/** One lap of the lobby's cars; name tags counter-rotate in step. */
-const LAP_MS = 48_000;
-/** When the cars started circling, so a rebuilt ring continues the drive. */
-const drivingSince = performance.now();
+  '<div class="lobby entry">' +
+  '<div class="scene-spot" aria-hidden="true"></div>' +
+  '<div class="lobby-side"><h1 class="title">Round About</h1>' +
+  '<div class="window"><p class="window-title">No game server is configured</p>' +
+  '<p class="window-text">This copy of the game cannot reach a backend. For local development, deploy a sandbox with <code>npx ampx sandbox</code>.</p></div></div></div>';
 
 /** Updates the lobby markup in place; text goes through textContent only. */
 export function renderLobby(root: HTMLElement, view: LobbyView) {
   const find = (id: string) => root.querySelector<HTMLElement>(`#${id}`)!;
-  renderCars(find("lobbyCars"), view.cars);
+  showLobby(
+    view.cars.map((car) => ({
+      id: car.id,
+      name: car.name,
+      tipster: car.tipster,
+      you: car.you,
+    })),
+  );
   find("lobbyPlayers").replaceChildren(
     ...view.cars.map((car) => {
       const item = document.createElement("li");
@@ -171,49 +159,4 @@ export function renderLobby(root: HTMLElement, view: LobbyView) {
   (find("startGame") as HTMLButtonElement).disabled = !view.canStart;
   find("startHint").textContent = view.startHint;
   find("lobbyLight").dataset.light = view.ready ? "green" : "red";
-}
-
-/** Rebuilds the cars only when the players change, so the drive never jumps. */
-function renderCars(container: HTMLElement, cars: LobbyCar[]) {
-  const key = cars
-    .map((car) => `${car.id}:${car.name}:${car.tipster}:${car.you}`)
-    .join("|");
-  if (container.dataset.key === key) return;
-  const known = new Set((container.dataset.ids ?? "").split(" "));
-  const firstRender = container.dataset.key === undefined;
-  container.dataset.key = key;
-  container.dataset.ids = cars.map((car) => car.id).join(" ");
-  // The ring and its name tags are rebuilt together with the same offset,
-  // so the tags' counter-rotation always matches the drive.
-  const delay = `-${(performance.now() - drivingSince) % LAP_MS}ms`;
-  const orbit = document.createElement("div");
-  orbit.className = "orbit";
-  orbit.style.animationDelay = delay;
-  container.replaceChildren(orbit);
-  orbit.append(
-    ...cars.map((car, index) => {
-      const angle = (index * 360) / Math.max(cars.length, 1) + 25;
-      const place = document.createElement("div");
-      place.className = "car";
-      place.style.setProperty("--angle", `${angle}deg`);
-      const body = document.createElement("div");
-      body.className = `car-body ${!firstRender && !known.has(car.id) ? "arriving" : ""}`;
-      body.innerHTML = carSvg(
-        car.tipster ? TIPSTER_CAR : CAR_COLORS[index % CAR_COLORS.length]!,
-        car.tipster,
-      );
-      const upright = document.createElement("div");
-      upright.className = "upright";
-      upright.style.animationDelay = delay;
-      const tag = document.createElement("span");
-      tag.className = `name-tag ${car.you ? "you" : ""}`;
-      tag.textContent = car.tipster ? `${car.name} (Tipster)` : car.name;
-      upright.append(tag);
-      const label = document.createElement("div");
-      label.className = "car-label";
-      label.append(upright);
-      place.append(body, label);
-      return place;
-    }),
-  );
 }

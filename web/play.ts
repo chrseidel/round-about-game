@@ -1,6 +1,6 @@
 import type { CallerSnapshot } from "../shared/protocol.ts";
 import { CONE_SVG } from "./art.ts";
-import { renderBoard } from "./board.ts";
+import { showGame } from "./scene.ts";
 import {
   correctExit,
   exitLabel,
@@ -27,6 +27,7 @@ export function renderPlay(
   actions: TurnActions & { gap(command: SessionCommand): void },
   serverNow: number,
   lockingGap: number | null,
+  camera: { animate?: boolean; done?: () => void } = {},
 ) {
   // Before the shared reveal this is the pre-lock view; from the target on,
   // the result carried in pendingReveal.
@@ -61,7 +62,14 @@ export function renderPlay(
   const lockedGap =
     lockingGap ?? (snapshot.pendingReveal ? snapshot.selectedGap : null);
   const to = snapshot.pendingReveal ? correctExit(snapshot) : null;
-  renderBoard(
+  // The panel first: on phones its height decides the board's size.
+  renderTurn(
+    turnView(snapshot, participantId, lockingGap !== null),
+    draft,
+    error,
+    actions,
+  );
+  showGame(
     {
       cards: snapshot.cards,
       phase: snapshot.phase,
@@ -74,27 +82,23 @@ export function renderPlay(
       exitLabels: snapshot.cards.map((_, index) =>
         exitLabel(snapshot.cards, index),
       ),
+      selectGap: canChoose
+        ? (index) => {
+            const command = gapCommand(snapshot, participantId, index);
+            if (command) actions.gap(command);
+          }
+        : undefined,
+      drive:
+        lockedGap !== null && to !== null && snapshot.revealAtUtc !== null
+          ? {
+              from: lockedGap,
+              to,
+              revealAtUtc: snapshot.revealAtUtc,
+              durationMs: snapshot.revealAtUtc - serverNow,
+            }
+          : null,
     },
-    canChoose
-      ? (index) => {
-          const command = gapCommand(snapshot, participantId, index);
-          if (command) actions.gap(command);
-        }
-      : undefined,
-    lockedGap !== null && to !== null && snapshot.revealAtUtc !== null
-      ? {
-          from: lockedGap,
-          to,
-          revealAtUtc: snapshot.revealAtUtc,
-          durationMs: snapshot.revealAtUtc - serverNow,
-        }
-      : null,
-  );
-  renderTurn(
-    turnView(snapshot, participantId, lockingGap !== null),
-    draft,
-    error,
-    actions,
+    camera,
   );
   // The build-up bar fills for exactly the time left until the reveal.
   const fill = document.querySelector<HTMLElement>(".reveal-fill");

@@ -15,6 +15,7 @@ import {
 } from "./lobby.ts";
 import { confirmsNewSession, mergePrivate, secondsLeft } from "./turn.ts";
 import { renderPlay } from "./play.ts";
+import { showEntry } from "./scene.ts";
 import { clueError } from "../game/rules.ts";
 import type {
   CallerSnapshot,
@@ -39,6 +40,7 @@ async function setupSessionEntry() {
   }
   const entry = document.querySelector<HTMLDivElement>("#sessionEntry")!;
   entry.hidden = false;
+  showEntry();
   if (!endpoint) {
     entry.innerHTML = NO_SERVER_HTML;
     return;
@@ -78,8 +80,8 @@ async function setupSessionEntry() {
     let gapInFlight = false;
     let lockingGap: number | null = null;
     let revealTimer: ReturnType<typeof setTimeout> | undefined;
-    let startTimer: ReturnType<typeof setTimeout> | undefined;
     let sawLobby = false;
+    let starting = false;
     const render = () => {
       if (!latest) return;
       newGame.hidden =
@@ -89,23 +91,14 @@ async function setupSessionEntry() {
         renderLobby(entry, lobbyView(latest, seat.participantId));
         return;
       }
-      // Players who watched the lobby see the light turn green and the cars
-      // pull away before the board appears; everyone else goes straight in.
+      // Players who watched the lobby see the light turn green and the
+      // camera swing overhead; everyone else goes straight to the board.
       const lobby = entry.querySelector(".lobby");
-      if (
-        sawLobby &&
-        !entry.hidden &&
-        lobby &&
-        !matchMedia("(prefers-reduced-motion: reduce)").matches
-      ) {
-        if (!lobby.classList.contains("starting")) {
-          lobby.classList.add("starting");
-          startTimer = setTimeout(() => {
-            entry.hidden = true;
-            sawLobby = false;
-          }, 1400);
-        }
-      } else entry.hidden = true;
+      const animate = sawLobby && !entry.hidden && Boolean(lobby) && !starting;
+      if (animate) {
+        starting = true;
+        lobby!.classList.add("starting");
+      } else if (!starting) entry.hidden = true;
       const serverNow = Date.now() + offset;
       // Re-render exactly when the shared reveal is due.
       clearTimeout(revealTimer);
@@ -151,6 +144,14 @@ async function setupSessionEntry() {
         },
         serverNow,
         lockingGap,
+        {
+          animate,
+          done: () => {
+            entry.hidden = true;
+            sawLobby = false;
+            starting = false;
+          },
+        },
       );
       tick();
     };
@@ -261,7 +262,6 @@ async function setupSessionEntry() {
       events.close();
       clearInterval(ticker);
       clearTimeout(revealTimer);
-      clearTimeout(startTimer);
       window.removeEventListener("resize", render);
     };
   };

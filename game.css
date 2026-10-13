@@ -1,18 +1,18 @@
-/* Round About: the circle is a roundabout. Street palette, sign typography. */
+/* Round About: an 8-bit roundabout. Isometric lobby, top-down game. */
 :root {
-  --grass: #4f9a47;
-  --island: #6cb65e;
-  --asphalt: #3b4148;
-  --lane: #f3f1e8;
-  --sign: #1f56b3;
-  --sign-dark: #163f86;
-  --amber: #ffb81c;
-  --cone: #ff6a13;
-  --kerb: #d8402f;
-  --go: #17824a;
-  --ink: #16202a;
-  --muted: #3e4954;
-  font-family: "Overpass", sans-serif;
+  --ink: #1b1a2e;
+  --paper: #f2f0e6;
+  --grass: #5dbb63;
+  --island: #7acc6e;
+  --asphalt: #4a4e69;
+  --sign: #3366cc;
+  --sign-dark: #24509f;
+  --amber: #ffc845;
+  --cone: #ff7a2f;
+  --kerb: #e04848;
+  --go: #2e8b4e;
+  --muted: #3a3950;
+  font-family: "Pixelify Sans", sans-serif;
   color: var(--ink);
   font-synthesis: none;
 }
@@ -21,259 +21,209 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background:
-    radial-gradient(120% 90% at 0% 0%, #8cc65c 0%, rgba(140, 198, 92, 0) 55%),
-    radial-gradient(110% 90% at 100% 100%, #2e8a78 0%, rgba(46, 138, 120, 0) 60%),
-    radial-gradient(60% 50% at 100% 0%, rgba(214, 200, 90, 0.45) 0%, rgba(214, 200, 90, 0) 70%),
-    var(--grass);
-  background-attachment: fixed;
+  background: linear-gradient(180deg, #7fb8d9 0 16%, #8ec3dc 16% 30%, #a2cfdb 30% 46%, #bbdcd5 46% 62%, #d3e6cc 62% 80%, #e7eec2 80% 100%) fixed;
 }
 button, input { font: inherit; }
 button { cursor: pointer; }
-button:focus-visible, input:focus-visible { outline: 4px solid var(--amber); outline-offset: 3px; }
+button:focus-visible, input:focus-visible { outline: 4px solid var(--amber); outline-offset: 2px; }
 [hidden] { display: none !important; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-/* Buttons are signs: thick ink outline and a solid shadow that presses in. */
+/* Pixel windows and buttons: thick ink outline, hard offset shadow, square corners. */
+.window { background: var(--paper); border: 4px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.window-blue { background: var(--sign); color: var(--paper); }
+.window-label { margin: 0; font-size: 17px; font-weight: 600; }
+.window-title { margin: 0; font-size: 20px; font-weight: 700; line-height: 1.1; }
+.window-text { margin: 0; font-size: 17px; line-height: 1.3; color: var(--muted); }
 .button {
-  min-height: 52px; width: 100%; padding: 12px 16px 9px;
-  border: 3px solid var(--ink); border-radius: 12px;
-  font: 400 17px/1.1 "Bungee", sans-serif; letter-spacing: .5px;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  box-shadow: 0 5px 0 var(--ink); transition: transform .08s, box-shadow .08s, background .15s;
+  min-height: 52px; width: 100%; padding: 10px 14px;
+  border: 4px solid var(--ink); border-radius: 0;
+  font: 400 13px/1.3 "Press Start 2P", monospace;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 5px 0 var(--ink);
 }
 .button:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
-.button:disabled { opacity: .45; cursor: not-allowed; box-shadow: 0 2px 0 var(--ink); }
+.button:disabled { opacity: .5; cursor: not-allowed; }
 .button.primary { background: var(--sign); color: #fff; }
 .button.primary:hover:not(:disabled) { background: var(--sign-dark); }
-.button.go { background: var(--go); color: #fff; font-size: 20px; min-height: 58px; }
+.button.go { background: var(--go); color: #fff; font-size: 15px; min-height: 56px; }
 .button.amber { background: var(--amber); color: var(--ink); }
-.button.light { background: var(--lane); color: var(--sign); font: 800 16px "Overpass", sans-serif; letter-spacing: 0; }
-.button.quiet { background: var(--lane); color: var(--ink); }
-
-/* Sign panels */
-.sign { border-radius: 16px; }
-.sign-blue { background: var(--sign); color: var(--lane); padding: 6px; }
-.sign-blue .sign-inner { border: 3px solid var(--lane); border-radius: 11px; padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 8px; }
-.sign-white { background: var(--lane); border: 3px solid var(--ink); padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
-.sign-label { margin: 0; font-size: 16px; font-weight: 600; }
-.sign-title { margin: 0; font-size: 18px; font-weight: 800; }
-.sign-text { margin: 0; font-size: 15px; line-height: 1.45; color: var(--muted); }
-.command-error { margin: 0; color: #fff; background: #a3271c; border-radius: 10px; padding: 8px 12px; font-weight: 600; }
+.button.light { background: var(--paper); color: var(--ink); font: 700 18px "Pixelify Sans", sans-serif; }
+.command-error { margin: 0; color: #fff; background: #a3271c; border: 4px solid var(--ink); padding: 6px 10px; font-weight: 600; }
 .command-error:empty { display: none; }
 
-/* Traffic light: three lamps, lit by data-light. */
-.traffic-light { flex: none; display: inline-flex; flex-direction: column; gap: 6px; padding: 7px; background: #23272c; border-radius: 12px; }
-.traffic-light .lamp { width: 28px; height: 28px; border-radius: 50%; }
-.lamp.red { background: #5a2420; }
-.lamp.amber { background: #5c4a1a; }
-.lamp.green { background: #1e4a30; }
-[data-light="red"] .lamp.red { background: #ff4a3d; box-shadow: 0 0 14px #ff4a3d; }
-[data-light="amber"] .lamp.amber { background: var(--amber); box-shadow: 0 0 14px var(--amber); }
-[data-light="green"] .lamp.green { background: #3ddc84; box-shadow: 0 0 14px #3ddc84; }
+/* Traffic light: three square lamps, lit by data-light. */
+.traffic-light { flex: none; display: inline-flex; flex-direction: column; gap: 5px; padding: 5px; background: var(--ink); }
+.traffic-light .lamp { width: 26px; height: 26px; }
+.lamp.red { background: #5a2a33; }
+.lamp.amber { background: #5e5130; }
+.lamp.green { background: #24503a; }
+[data-light="red"] .lamp.red { background: #ff5a4d; }
+[data-light="amber"] .lamp.amber { background: var(--amber); }
+[data-light="green"] .lamp.green { background: #5ce08a; }
 
-/* The road, shared by lobby and board. */
-.road-fill { fill: var(--asphalt); }
-.road-surface { fill: none; stroke: var(--asphalt); }
-.road-edge { fill: none; stroke: var(--lane); stroke-width: 2; }
-.lane-marking { fill: none; stroke: var(--lane); stroke-width: 3; stroke-dasharray: 18 14; }
-.island-grass { fill: var(--island); }
-.kerb { fill: none; stroke-width: 8; }
-.kerb-white { stroke: var(--lane); }
-.kerb-red { stroke: var(--kerb); stroke-dasharray: 14 14; }
-.hazard { fill: none; stroke: none; }
-.roundabout-sign { display: block; width: 100%; height: 100%; }
-
-/* Entry and lobby overlay */
-:root .session-entry:not([hidden]) { position: fixed; inset: 0; z-index: 10; overflow-x: hidden; overflow-y: auto; }
-.session-entry { background:
-    radial-gradient(120% 90% at 0% 0%, #8cc65c 0%, rgba(140, 198, 92, 0) 55%),
-    radial-gradient(110% 90% at 100% 100%, #2e8a78 0%, rgba(46, 138, 120, 0) 60%),
-    radial-gradient(60% 50% at 100% 0%, rgba(214, 200, 90, 0.45) 0%, rgba(214, 200, 90, 0) 70%),
-    var(--grass); }
-.entry { min-height: 100%; width: min(420px, 100%); margin: auto; padding: 40px 16px; display: flex; flex-direction: column; justify-content: center; gap: 24px; }
-.entry-logo { display: flex; flex-direction: column; align-items: center; gap: 14px; }
-.entry-logo .roundabout-sign { width: 132px; height: 132px; }
-.entry-logo h1 { margin: 0; font: 400 40px/1 "Bungee", sans-serif; color: var(--lane); text-shadow: 0 3px 0 var(--ink); text-align: center; }
-.entry-form label { display: flex; flex-direction: column; gap: 6px; font-weight: 800; font-size: 15px; }
-.entry-form input, .clue-input { min-height: 50px; border: 3px solid var(--ink); border-radius: 12px; background: #fff; padding: 0 14px; font: 600 17px "Overpass", sans-serif; color: var(--ink); }
-.entry-form code { font-size: 14px; }
-.session-actions { display: flex; gap: 10px; margin-top: 4px; }
-
-.lobby { min-height: 100%; display: flex; align-items: center; justify-content: center; gap: 48px; padding: 32px; }
-.lobby-ring { --ring: min(600px, calc(100vh - 64px), calc(100vw - 460px)); position: relative; flex: none; width: var(--ring); height: var(--ring); }
-.lobby-road { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.lobby-road .painted { font: 38px "Bungee", sans-serif; letter-spacing: 4px; fill: var(--lane); }
-.lobby-sign { position: absolute; left: 50%; top: 50%; width: 28%; height: 28%; transform: translate(-50%, -50%); }
-.cars { position: absolute; inset: 0; }
-.orbit { position: absolute; left: 50%; top: 50%; width: 0; height: 0; animation: drive 48s linear infinite; }
-.car { position: absolute; left: 0; top: 0; transform: rotate(var(--angle)) translateY(calc(var(--ring) * -0.4367)); }
-.car-body { position: absolute; left: -23px; top: -13px; width: 46px; height: 26px; }
-.car-svg { display: block; width: 100%; height: 100%; }
-.car-body.arriving { animation: arrive .9s ease-out; }
-.car-label { position: absolute; left: 0; top: 44px; width: 0; height: 0; transform: rotate(calc(-1 * var(--angle))); }
-.upright { width: 0; height: 0; display: flex; align-items: center; justify-content: center; animation: upright 48s linear infinite; }
-.name-tag { white-space: nowrap; background: var(--lane); border: 2px solid var(--ink); border-radius: 7px; padding: 3px 8px 1px; font-weight: 800; font-size: 14px; }
+/* The scene: a fixed pixel world behind every screen. */
+.scene { position: fixed; inset: 0; z-index: 0; overflow: hidden; }
+.scene-ground { position: absolute; inset: 0; width: 100%; height: 100%; }
+.scene-ground .field { fill: var(--grass); }
+.scene-ground .asphalt { fill: var(--asphalt); }
+.scene-ground .lane-marking { fill: none; stroke: var(--paper); stroke-width: 3; stroke-dasharray: 12 12; }
+.scene-ground .kerb-white { fill: var(--paper); }
+.scene-ground .kerb-red { fill: none; stroke: var(--kerb); stroke-width: 6; stroke-dasharray: 10 10; }
+.scene-ground .island-grass { fill: var(--island); }
+.scene-ground .hazard { fill: none; stroke: var(--amber); stroke-width: 7; stroke-dasharray: 14 10; }
+.scene-ground .painted { font-family: "Press Start 2P", monospace; fill: var(--paper); }
+.scene-trees > .tree, .scene-logo, .scene-cars > *, .scene-board > *, .scene-exits > *, .scene-signs > * { position: absolute; left: 0; top: 0; }
+.tree { width: 48px; transform-origin: 50% 100%; }
+.tree-svg, .car-svg, .cone-svg, .diamond-svg, .chevrons, .roundabout-sign { display: block; width: 100%; height: auto; }
+.scene-logo .roundabout-sign { height: 100%; }
+.scene-car { width: 0; height: 0; }
+.car-body { position: absolute; left: -24px; top: -26px; width: 48px; }
+.car-body.left { transform: scaleX(-1); }
+.scene-car.arriving .car-body { animation: arrive .6s steps(4); }
+@keyframes arrive { from { transform: translateY(-40px); opacity: 0; } }
+.name-tag { position: absolute; left: 0; top: -58px; transform: translateX(-50%); white-space: nowrap; background: var(--paper); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); padding: 1px 7px 2px; font-weight: 700; font-size: 16px; }
 .name-tag.you { background: var(--amber); }
-@keyframes drive { to { transform: rotate(-360deg); } }
-@keyframes upright { to { transform: rotate(360deg); } }
-@keyframes arrive { from { transform: translateY(-90px); opacity: 0; } }
 
-.lobby-side { position: relative; z-index: 1; width: 340px; flex: none; display: flex; flex-direction: column; gap: 18px; }
-.invite-code { margin: 0; font: 400 28px/1.1 "Bungee", sans-serif; letter-spacing: 1px; overflow-wrap: anywhere; }
-.tipster-row { display: flex; gap: 14px; align-items: center; }
-.diamond { flex: none; width: 52px; height: 52px; }
-.diamond polygon { fill: var(--amber); stroke: var(--ink); stroke-width: 3; stroke-linejoin: round; }
-.diamond text { font: 18px "Bungee", sans-serif; fill: var(--ink); }
-.start-sign { flex-direction: row; align-items: center; gap: 16px; }
+/* The board: exits, signs, island, reveal car. */
+.exit { padding: 0; border: 0; background: var(--asphalt); color: transparent; border-bottom: 3px dashed var(--paper); display: flex; align-items: center; justify-content: center; }
+.exit::after { content: ""; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
+.exit .chevrons { width: 70%; }
+.exit:not(:disabled):hover { background: #5a5f7c; color: rgba(255, 200, 69, .6); }
+.exit:disabled { cursor: default; }
+.exit.selected { color: var(--amber); background: #33364a; }
+.exit.selected .chevrons { animation: blink .8s steps(1) infinite; }
+.exit.locked { color: var(--amber); background: #26283a; }
+@keyframes blink { 0%, 59% { opacity: 1; } 60%, 100% { opacity: .15; } }
+.sign { width: max-content; max-width: 124px; display: flex; flex-direction: column; align-items: center; gap: 5px; text-align: center; padding: 7px 9px 6px; background: var(--paper); color: var(--ink); border: 4px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); hyphens: auto; }
+.sign.is-anchor { background: var(--sign); color: var(--paper); }
+.sign.is-recent { outline: 4px solid var(--amber); outline-offset: 2px; }
+.sign-number { font: 400 14px/1 "Press Start 2P", monospace; }
+.sign-word { font-weight: 700; font-size: 16px; line-height: 1.05; overflow-wrap: break-word; }
+.scene-board.compact .sign { max-width: 74px; padding: 4px 5px; gap: 3px; border-width: 3px; box-shadow: 3px 3px 0 var(--ink); }
+.scene-board.compact .sign-number { font-size: 10px; }
+.scene-board.compact .sign-word { font-size: 13px; }
+.island { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; pointer-events: none; }
+.island-title { margin: 0; font-weight: 700; font-size: 18px; }
+.island-text { margin: 0; font-weight: 600; font-size: 16px; }
+.clue-sign { background: var(--sign); color: var(--paper); border: 4px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); padding: 10px 16px 12px; display: flex; flex-direction: column; gap: 6px; max-width: 100%; }
+.clue-title { font-size: 17px; font-weight: 600; }
+.clue-word { font: 400 20px/1.25 "Press Start 2P", monospace; overflow-wrap: anywhere; }
+.secret-diamond { position: relative; width: 96px; display: grid; place-items: center; }
+.secret-diamond .diamond-svg { grid-area: 1 / 1; }
+.secret-number { grid-area: 1 / 1; font: 400 22px/1 "Press Start 2P", monospace; }
+.drive-car { width: 34px; }
+
+/* Entry and lobby: windows beside (or below) the isometric diorama. */
+.session-entry { position: fixed; inset: 0; z-index: 10; overflow-x: hidden; overflow-y: auto; pointer-events: none; }
+.session-entry .lobby-side, .session-entry .title { pointer-events: auto; }
+.session-entry:not([hidden]) ~ .app { visibility: hidden; }
+.lobby { min-height: 100%; display: flex; align-items: center; gap: 32px; padding: 32px; }
+.scene-spot { flex: 1; align-self: stretch; min-height: 360px; }
+.lobby-side { width: 300px; flex: none; display: flex; flex-direction: column; gap: 20px; }
+.title { margin: 0; font: 400 26px/1.3 "Press Start 2P", monospace; color: var(--paper); text-shadow: 4px 4px 0 var(--ink); }
+.invite-code { margin: 0; font: 400 17px/1.6 "Press Start 2P", monospace; letter-spacing: 1px; overflow-wrap: anywhere; }
+.tipster-row { display: flex; gap: 12px; align-items: center; }
+.diamond-badge { position: relative; flex: none; width: 44px; display: grid; place-items: center; }
+.diamond-badge > * { grid-area: 1 / 1; }
+.diamond-badge > span { font: 400 14px "Press Start 2P", monospace; }
+.start-window { flex-direction: row; align-items: center; gap: 14px; }
 .start-body { flex: 1; display: flex; flex-direction: column; gap: 10px; }
-.connection { align-self: flex-start; margin: 0; background: var(--lane); border: 2px solid var(--ink); border-radius: 999px; padding: 3px 12px 1px; font-size: 14px; font-weight: 600; }
-/* Start: the light runs red, amber, green and the cars pull away. */
-.lobby.starting .lamp { animation: none; }
-.lobby.starting #lobbyLight .lamp.red { animation: lamp-red 1.3s steps(1) forwards; }
-.lobby.starting #lobbyLight .lamp.amber { animation: lamp-amber 1.3s steps(1) forwards; }
-.lobby.starting #lobbyLight .lamp.green { animation: lamp-green 1.3s steps(1) forwards; }
-.lobby.starting .orbit, .lobby.starting .upright { animation-duration: 6s; }
-.lobby.starting .lobby-ring { animation: pull-away 1.4s ease-in forwards; }
-@keyframes lamp-red { 0% { background: #ff4a3d; box-shadow: 0 0 14px #ff4a3d; } 35% { background: #5a2420; box-shadow: none; } }
-@keyframes lamp-amber { 0% { background: #5c4a1a; } 35% { background: var(--amber); box-shadow: 0 0 14px var(--amber); } 70% { background: #5c4a1a; box-shadow: none; } }
-@keyframes lamp-green { 0% { background: #1e4a30; box-shadow: none; } 70% { background: #3ddc84; box-shadow: 0 0 14px #3ddc84; } }
-@keyframes pull-away { 70% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.15); opacity: 0; } }
+.connection { align-self: flex-start; margin: 0; background: var(--paper); border: 3px solid var(--ink); padding: 2px 10px; font-size: 16px; font-weight: 600; }
+.entry-form label { display: flex; flex-direction: column; gap: 6px; font-weight: 700; font-size: 17px; }
+.entry-form input, .clue-input { min-height: 50px; border: 4px solid var(--ink); border-radius: 0; background: #fff; padding: 0 12px; font: 600 19px "Pixelify Sans", sans-serif; color: var(--ink); }
+.entry-form code { font-size: 15px; }
+.session-actions { display: flex; gap: 10px; }
+.session-actions .button { font-size: 11px; }
+/* Start: the windows step away while the light runs red, amber, green. */
+.lobby.starting .lobby-side { animation: step-away 1.3s steps(5) forwards; }
+.lobby.starting #lobbyLight .lamp.red { animation: lamp-red 1.2s steps(1) forwards; }
+.lobby.starting #lobbyLight .lamp.amber { animation: lamp-amber 1.2s steps(1) forwards; }
+.lobby.starting #lobbyLight .lamp.green { animation: lamp-green 1.2s steps(1) forwards; }
+@keyframes lamp-red { 0% { background: #ff5a4d; } 35% { background: #5a2a33; } }
+@keyframes lamp-amber { 0% { background: #5e5130; } 35% { background: var(--amber); } 70% { background: #5e5130; } }
+@keyframes lamp-green { 0% { background: #24503a; } 70% { background: #5ce08a; } }
+@keyframes step-away { 0%, 70% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateX(40px); } }
 
-/* Game screen */
-.app { min-height: 100vh; max-width: 1400px; margin: auto; padding: 0 32px; }
-.topbar { height: 76px; display: flex; align-items: center; gap: 18px; }
-.brand { display: flex; align-items: center; gap: 10px; font: 400 22px "Bungee", sans-serif; color: var(--lane); text-shadow: 0 2px 0 var(--ink); white-space: nowrap; }
-.brand-sign { width: 36px; height: 36px; flex: none; }
+/* Game layout above the scene; only the bar and the panel catch clicks. */
+.app { position: relative; z-index: 1; min-height: 100vh; max-width: 1400px; margin: auto; padding: 0 28px; display: flex; flex-direction: column; pointer-events: none; }
+.topbar, .play-panel { pointer-events: auto; }
+.topbar { height: 72px; display: flex; align-items: center; gap: 12px; }
+.brand { font: 400 18px "Press Start 2P", monospace; color: var(--paper); text-shadow: 3px 3px 0 var(--ink); white-space: nowrap; }
 .status { margin-left: auto; display: flex; gap: 10px; align-items: center; }
-.draw-label { background: var(--lane); border: 2px solid var(--ink); border-radius: 8px; padding: 4px 10px 2px; font-weight: 800; font-size: 15px; }
-.pile-sign { background: var(--go); color: #fff; border: 2px solid var(--lane); outline: 2px solid var(--go); border-radius: 8px; padding: 4px 10px 2px; font-weight: 800; font-size: 15px; }
-.new-game { min-height: 44px; border: 2px solid var(--ink); border-radius: 10px; background: var(--lane); color: var(--ink); font-weight: 800; font-size: 15px; padding: 0 14px; }
-.new-game:hover { background: #fff; }
-.layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 32px; align-items: center; min-height: calc(100vh - 76px); padding: 8px 0 32px; }
-.board-area { min-width: 0; }
-.board { position: relative; height: min(760px, calc(100vh - 116px)); min-height: 480px; }
-.road { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.board.overtime .hazard { stroke: var(--amber); stroke-width: 7; stroke-dasharray: 16 12; }
-
-.ring-card {
-  position: absolute; transform: translate(-50%, -50%); z-index: 2;
-  width: max-content; min-width: 92px; max-width: 130px; padding: 10px 10px 8px;
-  display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
-  background: #fff; color: var(--ink); border: 3px solid var(--ink); border-radius: 10px; box-shadow: 0 4px 0 var(--ink);
-}
-.ring-card.is-anchor { background: var(--sign); color: var(--lane); }
-.ring-card.is-recent { outline: 4px solid var(--amber); outline-offset: 3px; animation: card-in .45s ease-out; }
-.ring-number { font: 400 24px/1 "Bungee", sans-serif; }
-.ring-word { font-weight: 800; font-size: 14px; line-height: 1.1; overflow-wrap: anywhere; }
-.board.compact .ring-card { min-width: 64px; max-width: 104px; padding: 6px 6px 5px; border-width: 2px; border-radius: 8px; box-shadow: 0 3px 0 var(--ink); gap: 3px; }
-.board.compact .ring-number { font-size: 16px; }
-.board.compact .ring-word { font-size: 11px; }
-@keyframes card-in { from { transform: translate(-50%, -50%) scale(.5); opacity: 0; } }
-
-/* Exits: short side roads between the signs, with a give-way line. */
-.ring-gap {
-  position: absolute; z-index: 1; padding: 0; border: 0;
-  background: var(--asphalt); color: transparent;
-  border-bottom: 3px dashed var(--lane); border-radius: 5px 5px 0 0;
-  display: flex; align-items: center; justify-content: center;
-}
-.ring-gap::after { content: ""; position: absolute; inset: -12px; }
-.ring-gap .chevrons { width: 60%; height: 70%; }
-.ring-gap:not(:disabled):hover { background: #4b525a; color: rgba(255, 184, 28, .55); }
-.ring-gap:disabled { cursor: default; }
-.ring-gap.selected { color: var(--amber); background: #2a2f35; }
-.ring-gap.selected .chevrons { animation: indicate .9s steps(1) infinite; }
-.ring-gap.locked { color: var(--amber); background: #23272c; }
-@keyframes indicate { 0%, 55% { opacity: 1; } 56%, 100% { opacity: .2; } }
-.reveal-car { position: absolute; z-index: 3; width: 46px; height: 26px; pointer-events: none; transform: translate(-50%, -50%); opacity: 0; }
-
-/* The island in the middle of the ring. */
-.island { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: var(--island-size); height: var(--island-size); z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; pointer-events: none; }
-.island-logo { width: 46%; height: 46%; }
-.island-thinking .island-logo { width: 32%; height: 32%; }
-.island-title { margin: 0; max-width: 80%; font-weight: 800; font-size: clamp(11px, calc(var(--island-size) * .055), 17px); }
-.island-text { margin: 0; max-width: 80%; font-weight: 600; font-size: clamp(11px, calc(var(--island-size) * .05), 15px); }
-.clue-sign { max-width: 92%; background: var(--sign); border-radius: 14px; color: var(--lane); }
-.clue-title, .clue-word { display: block; }
-.clue-sign { border: 0; box-shadow: inset 0 0 0 3px var(--sign), inset 0 0 0 6px var(--lane); padding: 12px 10px 10px; }
-.clue-title { font-size: clamp(12px, calc(var(--island-size) * .05), 15px); font-weight: 600; }
-.clue-word { font: 400 clamp(16px, calc(var(--island-size) * .1), 34px)/1.05 "Bungee", sans-serif; overflow-wrap: anywhere; }
-.secret-diamond { width: 46%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; position: relative; }
-.secret-diamond::before { content: ""; position: absolute; inset: 15%; background: var(--amber); border: 4px solid var(--ink); border-radius: 8px; transform: rotate(45deg); }
-.secret-number { position: relative; font: 400 clamp(26px, calc(var(--island-size) * .15), 44px)/1 "Bungee", sans-serif; }
-
-/* Turn panel */
-.play-panel { background: var(--lane); border: 3px solid var(--ink); border-radius: 18px; display: flex; flex-direction: column; box-shadow: 0 6px 0 var(--ink); }
-.panel-header { min-height: 64px; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 3px solid var(--ink); font-weight: 800; font-size: 15px; }
-.lives { display: flex; gap: 8px; align-items: flex-end; color: var(--cone); }
-.life { width: 28px; height: 34px; display: block; transform-origin: 50% 90%; }
-.life .cone-svg { width: 100%; height: 100%; display: block; }
-.life.lost { color: #9aa3ab; opacity: .5; transform: rotate(-72deg) translateX(-4px); }
-.life.just-lost { animation: cone-tip .7s ease-in; }
-@keyframes cone-tip { 0% { transform: none; opacity: 1; color: var(--cone); } 60% { transform: rotate(-80deg) translateX(-4px); opacity: 1; color: var(--cone); } }
-.play-panel.overtime .panel-header { background: repeating-linear-gradient(-45deg, var(--amber) 0 14px, var(--ink) 14px 28px); border-radius: 15px 15px 0 0; }
-.play-panel.overtime #lifeText { background: var(--amber); color: var(--ink); border: 2px solid var(--ink); border-radius: 8px; padding: 3px 10px 1px; font: 400 16px "Bungee", sans-serif; }
+.draw-label { background: var(--paper); border: 3px solid var(--ink); padding: 3px 10px; font-weight: 700; font-size: 17px; }
+.pile-sign { background: var(--go); color: #fff; border: 3px solid var(--ink); padding: 3px 10px; font-weight: 700; font-size: 17px; }
+.new-game { min-height: 44px; border: 3px solid var(--ink); background: var(--paper); color: var(--ink); box-shadow: 0 4px 0 var(--ink); font-weight: 700; font-size: 17px; padding: 0 14px; }
+.layout { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: center; padding-bottom: 28px; }
+.board { align-self: stretch; min-height: 480px; }
+.play-panel { background: var(--paper); border: 4px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); display: flex; flex-direction: column; }
+.panel-header { min-height: 56px; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 4px solid var(--ink); font-weight: 700; font-size: 18px; }
+.lives { display: flex; gap: 6px; align-items: flex-end; color: var(--cone); }
+.life { width: 24px; display: block; transform-origin: 50% 90%; }
+.life.lost { color: #9aa0b4; opacity: .6; transform: rotate(-90deg) translateX(-6px); }
+.life.just-lost { animation: cone-tip .6s steps(4); }
+@keyframes cone-tip { 0% { transform: none; opacity: 1; color: var(--cone); } }
+.play-panel.overtime .panel-header { background: repeating-linear-gradient(-45deg, var(--amber) 0 12px, var(--ink) 12px 24px); }
+.play-panel.overtime #lifeText { background: var(--amber); border: 3px solid var(--ink); padding: 2px 8px; font: 400 12px "Press Start 2P", monospace; }
 .play-panel.overtime .lives { visibility: hidden; }
-.panel-body { padding: 22px 22px 24px; display: flex; flex-direction: column; }
-.panel-body h1 { font: 400 26px/1.1 "Bungee", sans-serif; margin: 0 0 10px; }
+.panel-body { padding: 16px 14px 18px; display: flex; flex-direction: column; }
+.panel-body h1 { font: 400 16px/1.4 "Press Start 2P", monospace; margin: 0 0 10px; }
 #turnHeading[data-tone="good"] { color: var(--go); }
 #turnHeading[data-tone="bad"] { color: #b12a1d; }
-.panel-body > p { font-size: 16px; line-height: 1.5; color: #2b3540; margin: 0 0 18px; }
+.panel-body > p { font-size: 18px; line-height: 1.3; color: #2a2940; margin: 0 0 14px; }
 .panel-body > p:empty { display: none; }
 #turnContent { display: flex; flex-direction: column; gap: 12px; }
-.field-label { font-weight: 800; font-size: 15px; }
+.narrow-only { display: none !important; }
+body.narrow .narrow-only { display: flex !important; }
+.panel-secret { align-items: center; gap: 12px; font-size: 16px; }
+.panel-secret .secret-diamond { width: 60px; }
+.panel-secret .secret-number { font-size: 14px; }
+.panel-clue { margin: 0; gap: 6px; font-size: 18px; }
+.field-label { font-weight: 700; font-size: 17px; }
 .clue-input { width: 100%; margin-top: -6px; }
 .clue-input[aria-invalid="true"] { border-color: #b12a1d; background: #fff4f1; }
-.stage-note { margin: 0; font-size: 14px; font-weight: 600; color: #a3271c; }
+.stage-note { margin: 0; font-size: 16px; font-weight: 600; color: #a3271c; }
 .stage-note:empty { display: none; }
-.timer-row { display: flex; align-items: center; gap: 12px; background: #e3e6df; border-radius: 12px; padding: 8px 12px; }
-.timer-row .traffic-light { flex-direction: row; gap: 4px; padding: 5px; border-radius: 9px; }
-.timer-row .lamp { width: 16px; height: 16px; }
-.timer-label { font-weight: 800; font-size: 15px; flex: 1; }
-.timer-value { font: 400 24px "Bungee", sans-serif; color: var(--ink); }
+.timer-row { display: flex; align-items: center; gap: 10px; background: #dde2d6; border: 3px solid var(--ink); padding: 5px 10px; }
+.timer-row .traffic-light { flex-direction: row; gap: 3px; padding: 3px; }
+.timer-row .lamp { width: 13px; height: 13px; }
+.timer-label { font-weight: 700; font-size: 17px; flex: 1; }
+.timer-value { font: 400 16px "Press Start 2P", monospace; }
 .timer-value.urgent { color: #b12a1d; }
-.reveal-progress { height: 10px; border-radius: 5px; background: #d5d9d2; overflow: hidden; border: 2px solid var(--ink); }
-.reveal-fill { height: 100%; width: 0; background: var(--amber); animation-name: reveal-fill; animation-timing-function: linear; animation-fill-mode: forwards; }
+.reveal-progress { height: 14px; background: #dde2d6; border: 3px solid var(--ink); overflow: hidden; }
+.reveal-fill { height: 100%; width: 0; background: var(--amber); animation-name: reveal-fill; animation-timing-function: steps(12); animation-fill-mode: forwards; }
 @keyframes reveal-fill { to { width: 100%; } }
 
-dialog { border: 3px solid var(--ink); border-radius: 18px; padding: 24px; width: min(380px, calc(100% - 32px)); background: var(--lane); color: var(--ink); box-shadow: 0 6px 0 var(--ink); }
-dialog::backdrop { background: rgba(22, 32, 42, .55); }
-dialog h2 { font: 400 24px "Bungee", sans-serif; margin: 0 0 8px; }
-dialog p { color: var(--muted); font-size: 16px; line-height: 1.45; margin: 0; }
-.dialog-actions { display: flex; gap: 10px; margin-top: 22px; }
+dialog { border: 4px solid var(--ink); border-radius: 0; padding: 20px; width: min(380px, calc(100% - 32px)); background: var(--paper); color: var(--ink); box-shadow: 6px 6px 0 var(--ink); }
+dialog::backdrop { background: rgba(27, 26, 46, .55); }
+dialog h2 { font: 400 15px/1.4 "Press Start 2P", monospace; margin: 0 0 10px; }
+dialog p { color: var(--muted); font-size: 18px; line-height: 1.3; margin: 0; }
+.dialog-actions { display: flex; gap: 10px; margin-top: 20px; }
+.dialog-actions .button { font-size: 11px; }
 
-@media (max-width: 980px) {
-  .lobby { flex-direction: column; gap: 20px; padding: 20px 16px 28px; }
-  .lobby-ring { --ring: min(560px, calc(100vw - 32px)); }
-  .lobby-side { width: min(560px, 100%); }
-  .app { padding: 0 20px; }
-  .layout { grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; }
-}
 @media (max-width: 760px) {
-  .app { padding: 0 12px; }
-  .topbar { height: 60px; gap: 10px; }
-  .brand { font-size: 16px; }
-  .brand-sign { width: 28px; height: 28px; }
-  .draw-label, .pile-sign { font-size: 13px; padding: 3px 7px 1px; }
+  .lobby { flex-direction: column; align-items: stretch; gap: 16px; padding: 16px; }
+  .scene-spot { flex: none; height: 340px; min-height: 0; }
+  .lobby-side { width: 100%; }
+  .title { font-size: 20px; text-align: center; }
+  .name-tag { font-size: 14px; top: -46px; }
+  .car-body { left: -16px; top: -18px; width: 32px; }
+  .app { padding: 0 12px; height: 100dvh; min-height: 0; }
+  .topbar { height: 54px; gap: 8px; }
+  .brand { font-size: 11px; }
+  .draw-label, .pile-sign { font-size: 14px; padding: 1px 6px; }
   .new-game span { display: none; }
   .new-game { padding: 0 12px; }
-  .layout { display: flex; flex-direction: column; align-items: stretch; gap: 12px; min-height: 0; padding: 0 0 20px; }
-  .board { height: min(calc(100vw - 8px), 560px); min-height: 0; }
-  .panel-body { padding: 18px 16px 20px; }
-  .panel-header { min-height: 54px; padding: 8px 16px; }
-  .panel-body h1 { font-size: 22px; }
-  .lobby-road .painted { font-size: 40px; }
-  .name-tag { font-size: 13px; padding: 2px 6px 0; }
-  .car-body { left: -17px; top: -10px; width: 34px; height: 20px; }
-  .car-label { top: 32px; }
-  .invite-code { font-size: 22px; }
+  .layout { display: flex; flex-direction: column; align-items: stretch; gap: 10px; padding-bottom: 12px; min-height: 0; }
+  .board { flex: 1 1 auto; min-height: 300px; }
+  .panel-body { padding: 12px; }
+  .panel-body > p { font-size: 17px; margin-bottom: 10px; }
+  .panel-header { min-height: 46px; }
 }
 @media (max-width: 400px) {
-  .status { gap: 6px; }
-  .brand span { display: none; }
+  .brand { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .orbit, .upright, .car-body.arriving, .ring-gap.selected .chevrons, .ring-card.is-recent, .life.just-lost { animation: none; }
+  .exit.selected .chevrons, .life.just-lost, .scene-car.arriving .car-body { animation: none; }
   .reveal-progress { display: none; }
 }
