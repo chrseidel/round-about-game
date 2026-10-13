@@ -299,3 +299,27 @@ test("lock after Overtime expiry is refused", () => {
     "Guessing is not open right now.",
   );
 });
+
+test("lock sets the shared reveal time", () => {
+  const { session, host, carol } = guessing();
+  const chosen = chooseGap(session, host, 1);
+  const locked = lockGap(chosen, carol, 1, chosen.version, 2_000);
+  assert.equal(locked.revealAtUtc, 4_000);
+  assert.equal(locked.lockedBy, carol);
+  const early = projectCaller(locked, carol, 3_000);
+  assert.equal(early.result, null);
+  assert.notEqual(early.pendingReveal, null);
+  assert.equal(early.lockedBy, carol);
+  const late = projectCaller(locked, host, 4_000);
+  assert.notEqual(late.result, null);
+  assert.equal(late.pendingReveal, null);
+});
+
+test("timeouts reveal immediately", () => {
+  const { session, host } = guessing(0);
+  const chosen = chooseGap(session, host, 1);
+  const expired = reconcile(chosen, 21_000);
+  assert.equal(expired.revealAtUtc, null);
+  assert.notEqual(projectCaller(expired, host, 21_000).result, null);
+  assert.equal(newSession("Zoe", 0).session.lockedBy, null);
+});

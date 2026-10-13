@@ -26,6 +26,7 @@ function session(): Session {
     ],
     game: createGame(["cake", "work", "fruit"], numbers),
     revealAtUtc: null,
+    lockedBy: null,
     expiresAt: 999999999999,
   };
 }

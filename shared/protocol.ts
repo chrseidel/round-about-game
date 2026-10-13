@@ -14,6 +14,8 @@ export type Session = {
   game: Game;
   turnId: string;
   revealAtUtc: number | null;
+  /** Who locked the current guess; shown during the shared reveal. */
+  lockedBy: string | null;
   expiresAt: number;
   /** IDs of the last applied commands, so retries are not applied twice. */
   recentCommands?: string[];
@@ -46,6 +48,7 @@ export type PublicSnapshot = {
   deadlineUtc: number | null;
   result: PublicResult | null;
   revealAtUtc: number | null;
+  lockedBy: string | null;
   /** Server clock when the snapshot was made; browsers correct countdowns with it. */
   serverTimeUtc: number;
   pendingReveal: {
@@ -163,6 +166,7 @@ export function projectPublic(session: Session, now: number): PublicSnapshot {
     deadlineUtc: game.deadline,
     result: revealPending ? null : publicResult(game.lastResult, game.current),
     revealAtUtc: session.revealAtUtc,
+    lockedBy: session.lockedBy ?? null,
     serverTimeUtc: now,
     pendingReveal:
       revealPending && pendingResult

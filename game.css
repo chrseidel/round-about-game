@@ -121,3 +121,21 @@ dialog p { color: #889889; font-size: 12px; margin: 0; }
 .session-lobby button[hidden] { display: none; }
 #startHint, #connectionStatus { color: #6b766b; font-size: 0.9em; }
 #commandError { color: #a33; }
+/* Shared reveal (Task 13). The team's selection stays visible for everyone,
+   including the Tipster, whose gaps are disabled. */
+.ring-gap.selected:disabled, .ring-gap.locked:disabled { opacity: 1; }
+.ring-gap.locked { background: #c4553a; border-color: #c4553a; color: #fff; transform: translate(-50%,-50%) scale(1.2); animation: hourglass-flip .6s ease-in-out; }
+@keyframes hourglass-flip { 50% { transform: translate(-50%,-50%) scale(1.2) rotate(180deg); } 100% { transform: translate(-50%,-50%) scale(1.2) rotate(180deg); } }
+.reveal-progress { height: 6px; border-radius: 3px; background: #e6e1d6; overflow: hidden; margin: 12px 0; }
+.reveal-fill { height: 100%; width: 0; background: #c4553a; animation-name: reveal-fill; animation-timing-function: linear; animation-fill-mode: forwards; }
+@keyframes reveal-fill { to { width: 100%; } }
+#turnHeading[data-tone="good"] { color: #2f7a4b; }
+#turnHeading[data-tone="bad"] { color: #c4553a; }
+.ring-card.is-recent { animation: card-in .4s ease-out; }
+@keyframes card-in { from { transform: translate(-50%,-50%) scale(.6); opacity: 0; } }
+.life.just-lost { animation: life-lost .6s ease-out; }
+@keyframes life-lost { 30% { transform: scale(1.5); color: #c4553a; } }
+@media (prefers-reduced-motion: reduce) {
+  .ring-gap.locked, .ring-card.is-recent, .life.just-lost { animation: none; }
+  .reveal-progress { display: none; }
+}

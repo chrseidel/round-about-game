@@ -88,6 +88,7 @@ export function newSession(name: string, now: number) {
     game: createGame(shuffle(WORDS).slice(0, 3), shuffle(numbers)),
     turnId: token(),
     revealAtUtc: null,
+    lockedBy: null,
     expiresAt: Math.floor(now / 1000) + SESSION_SECONDS,
   };
   return { session, participantId, credential };
@@ -237,6 +238,9 @@ export function submitClue(
 
 const NOT_GUESSING = "Guessing is not open right now.";
 
+/** Pause between a lock and the result, so every screen reveals together. */
+export const REVEAL_DELAY_MS = 2000;
+
 /** Any Guesser moves the team's selection; the last click wins. */
 export function chooseGap(
   session: Session,
@@ -285,5 +289,7 @@ export function lockGap(
     ...session,
     version: session.version + 1,
     game: apply(game, { type: "LOCK_GAP" }, now),
+    revealAtUtc: now + REVEAL_DELAY_MS,
+    lockedBy: participantId,
   };
 }

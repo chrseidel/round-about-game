@@ -88,8 +88,9 @@ const report: Record<string, unknown> = {};
   const lockId = crypto.randomUUID();
   const lock = { type: "LOCK_GAP", index: 1 };
   const locked = await command(squid, carol, lock, carolView.version, lockId);
+  // Since Task 13 the lock answers with the pre-reveal view.
   expect(
-    locked.status === 200 && locked.data.phase === "result",
+    locked.status === 200 && locked.data.pendingReveal?.result != null,
     `lock → ${locked.status} ${locked.data.phase}`,
   );
   const retried = await command(squid, carol, lock, carolView.version, lockId);
@@ -97,7 +98,7 @@ const report: Record<string, unknown> = {};
     retried.status === 200 && retried.data.version === locked.data.version,
     `retried lock → ${retried.status} v${retried.data.version} (first v${locked.data.version})`,
   );
-  report.result = locked.data.result;
+  report.result = locked.data.pendingReveal?.result;
 }
 
 // 2. Stale locks are refused.

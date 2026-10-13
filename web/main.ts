@@ -54,6 +54,8 @@ async function setupSessionEntry() {
     let draft = "";
     let error = "";
     let gapInFlight = false;
+    let lockingGap: number | null = null;
+    let revealTimer: ReturnType<typeof setTimeout> | undefined;
     const render = () => {
       if (!latest) return;
       if (latest.status === "lobby") {
@@ -61,27 +63,51 @@ async function setupSessionEntry() {
         return;
       }
       entry.hidden = true;
-      renderPlay(latest, seat.participantId, draft, error, {
-        draw: () => void send({ type: "DRAW" }),
-        send: () => {
-          error = clueError(draft, latest!.cards);
-          if (error) render();
-          else void send({ type: "SUBMIT_CLUE", clue: draft });
+      const serverNow = Date.now() + offset;
+      // Re-render exactly when the shared reveal is due.
+      clearTimeout(revealTimer);
+      if (
+        latest.pendingReveal &&
+        latest.revealAtUtc !== null &&
+        serverNow < latest.revealAtUtc
+      )
+        revealTimer = setTimeout(render, latest.revealAtUtc - serverNow);
+      renderPlay(
+        latest,
+        seat.participantId,
+        draft,
+        error,
+        {
+          draw: () => void send({ type: "DRAW" }),
+          send: () => {
+            error = clueError(draft, latest!.cards);
+            if (error) render();
+            else void send({ type: "SUBMIT_CLUE", clue: draft });
+          },
+          gap: (command) => {
+            // One gap command at a time; the next click uses the confirmed state.
+            if (gapInFlight) return;
+            gapInFlight = true;
+            // Show the locked look in the same frame as the tap.
+            if (command.type === "LOCK_GAP") {
+              lockingGap = command.index;
+              render();
+            }
+            void send(command).finally(() => {
+              gapInFlight = false;
+              lockingGap = null;
+              render();
+            });
+          },
+          edit: (value) => {
+            draft = value;
+            error = value.trim() ? clueError(value, latest!.cards) : "";
+            render();
+          },
         },
-        gap: (command) => {
-          // One gap command at a time; the next click uses the confirmed state.
-          if (gapInFlight) return;
-          gapInFlight = true;
-          void send(command).finally(() => {
-            gapInFlight = false;
-          });
-        },
-        edit: (value) => {
-          draft = value;
-          error = value.trim() ? clueError(value, latest!.cards) : "";
-          render();
-        },
-      });
+        serverNow,
+        lockingGap,
+      );
       tick();
     };
     // Every snapshot, public or private, goes through mergePrivate so the

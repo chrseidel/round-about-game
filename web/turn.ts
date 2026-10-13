@@ -8,12 +8,16 @@ export type TurnView = {
   countdown: boolean;
   timerLabel: string;
   clue: string | null;
+  /** Server time of a pending shared reveal, for the build-up bar. */
+  revealAtUtc: number | null;
+  tone: "good" | "bad" | null;
 };
 
 /** What the turn panel shows for one participant; the server decides the rules. */
 export function turnView(
   snapshot: CallerSnapshot,
   participantId: string,
+  locking = false,
 ): TurnView {
   const isTipster = participantId === snapshot.tipsterId;
   const tipster =
@@ -32,7 +36,21 @@ export function turnView(
     countdown: Boolean(timerLabel) && snapshot.deadlineUtc !== null,
     timerLabel,
     clue: snapshot.clue,
+    revealAtUtc: null,
+    tone: null,
   });
+  if (snapshot.pendingReveal) {
+    const locker =
+      snapshot.lockedBy === participantId
+        ? "You"
+        : (snapshot.participants.find((p) => p.id === snapshot.lockedBy)
+            ?.nickname ?? "The team");
+    return {
+      ...view("Locked in", `${locker} locked in. Revealing…`),
+      revealAtUtc: snapshot.revealAtUtc,
+    };
+  }
+  if (locking) return view("Locking in…", "");
   switch (snapshot.phase) {
     case "ready":
       return isTipster
@@ -89,14 +107,17 @@ export function turnView(
         : result.correct
           ? ""
           : " Life lost.";
-      return view(
-        result.correct
-          ? "Correct!"
-          : result.timedOut
-            ? "Time ran out"
-            : "Wrong gap",
-        placed + after,
-      );
+      return {
+        ...view(
+          result.correct
+            ? "Correct!"
+            : result.timedOut
+              ? "Time ran out"
+              : "Wrong gap",
+          placed + after,
+        ),
+        tone: result.correct ? "good" : "bad",
+      };
     }
     default:
       return view("", "");
@@ -133,11 +154,42 @@ export function gapCommand(
   participantId: string,
   index: number,
 ): SessionCommand | null {
-  if (participantId === snapshot.tipsterId || snapshot.phase !== "guess")
+  if (
+    participantId === snapshot.tipsterId ||
+    snapshot.phase !== "guess" ||
+    snapshot.pendingReveal
+  )
     return null;
   return index === snapshot.selectedGap
     ? { type: "LOCK_GAP", index }
     : { type: "CHOOSE_GAP", index };
+}
+
+/**
+ * What to show at a given server time: before the shared reveal the
+ * pre-lock view, from the target on the result carried in pendingReveal.
+ */
+export function revealed(
+  snapshot: CallerSnapshot,
+  serverNow: number,
+): CallerSnapshot {
+  const pending = snapshot.pendingReveal;
+  if (
+    !pending ||
+    snapshot.revealAtUtc === null ||
+    serverNow < snapshot.revealAtUtc
+  )
+    return snapshot;
+  return {
+    ...snapshot,
+    phase: "result",
+    cards: pending.cards,
+    result: pending.result,
+    lives: pending.lives,
+    status: pending.status,
+    selectedGap: null,
+    pendingReveal: null,
+  };
 }
 
 /** Whole seconds left on the server's clock, given the browser's clock offset. */
@@ -169,12 +221,19 @@ export function renderTurn(
   actions: TurnActions,
 ) {
   find("turnHeading").textContent = view.heading;
+  if (view.tone) find("turnHeading").dataset.tone = view.tone;
+  else delete find("turnHeading").dataset.tone;
   find("turnDescription").textContent = view.description;
   const content = find("turnContent");
-  const key = `${view.mode}:${view.secret ?? ""}:${view.timerLabel}`;
+  const key = `${view.mode}:${view.secret ?? ""}:${view.timerLabel}:${view.revealAtUtc ?? ""}`;
   if (content.dataset.key !== key) {
     content.dataset.key = key;
     content.replaceChildren();
+    if (view.revealAtUtc !== null) {
+      const bar = element("div", "reveal-progress");
+      bar.append(element("div", "reveal-fill"));
+      content.append(bar);
+    }
     if (view.mode === "draw") {
       const button = element("button", "button primary", "Draw card");
       button.id = "drawButton";

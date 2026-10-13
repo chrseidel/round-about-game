@@ -6,6 +6,8 @@ type BoardState = {
   recent: number | null;
   clue: string;
   pile: number;
+  /** Gap locked in (optimistically or awaiting the shared reveal). */
+  lockedGap?: number | null;
 };
 
 const $ = (selector: string) =>
@@ -46,8 +48,9 @@ export function renderBoard(
     const gapAngle = angle + Math.PI / count;
     const gap = document.createElement("button");
     gap.type = "button";
-    gap.className = `ring-gap ${state.selectedGap === index ? "selected" : ""}`;
-    gap.textContent = state.selectedGap === index ? "⌛" : "+";
+    gap.className = `ring-gap ${state.selectedGap === index ? "selected" : ""} ${state.lockedGap === index ? "locked" : ""}`;
+    gap.textContent =
+      state.selectedGap === index || state.lockedGap === index ? "⌛" : "+";
     gap.title = `Between ${cardData.word} and ${state.cards[(index + 1) % count]!.word}`;
     gap.setAttribute("aria-label", gap.title);
     gap.disabled = !selectGap || state.phase !== "guess";

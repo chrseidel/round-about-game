@@ -29,6 +29,7 @@ function drawn(): Session {
       0,
     ),
     revealAtUtc: null,
+    lockedBy: null,
     expiresAt: 999_999_999_999,
   };
 }

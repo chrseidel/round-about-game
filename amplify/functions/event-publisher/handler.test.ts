@@ -24,6 +24,7 @@ function session(squid: string, version: number): Session {
     ],
     game,
     revealAtUtc: null,
+    lockedBy: null,
     expiresAt: 999999999999,
   };
 }

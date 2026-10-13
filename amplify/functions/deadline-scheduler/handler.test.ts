@@ -26,6 +26,7 @@ function session(squid: string, status: Session["status"]): Session {
       0,
     ),
     revealAtUtc: null,
+    lockedBy: null,
     expiresAt: 999_999_999_999,
   };
 }

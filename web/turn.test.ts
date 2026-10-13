@@ -1,7 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { CallerSnapshot } from "../shared/protocol.ts";
-import { gapCommand, mergePrivate, secondsLeft, turnView } from "./turn.ts";
+import {
+  gapCommand,
+  mergePrivate,
+  revealed,
+  secondsLeft,
+  turnView,
+} from "./turn.ts";
 
 function snapshot(overrides: Partial<CallerSnapshot> = {}): CallerSnapshot {
   return {
@@ -165,4 +171,63 @@ test("result texts", () => {
   assert.ok(lost.description.endsWith("Overtime ended."));
   const late = turnView(result({ correct: false, timedOut: true }), "alice");
   assert.equal(late.heading, "Time ran out");
+});
+
+const pending = () =>
+  guessing({
+    participants: [
+      { id: "alice", nickname: "Alice", joinedAt: 1 },
+      { id: "bob", nickname: "Bob", joinedAt: 2 },
+      { id: "carol", nickname: "Carol", joinedAt: 3 },
+    ],
+    deadlineUtc: null,
+    revealAtUtc: 10_000,
+    lockedBy: "carol",
+    lives: 3,
+    pendingReveal: {
+      cards: [
+        { number: 0, word: "Moss" },
+        { number: 33, word: "Lantern" },
+        { number: 42, word: "river" },
+        { number: 66, word: "Orbit" },
+      ],
+      result: {
+        correct: false,
+        lost: false,
+        discarded: false,
+        timedOut: false,
+        number: 42,
+        lower: 33,
+        upper: 66,
+      },
+      lives: 2,
+      status: "playing",
+    },
+  });
+
+test("revealed switches at the server target", () => {
+  const before = pending();
+  assert.equal(revealed(before, 9_999), before);
+  const after = revealed(before, 10_000);
+  assert.equal(after.phase, "result");
+  assert.equal(after.result?.number, 42);
+  assert.equal(after.cards.length, 4);
+  assert.equal(after.lives, 2);
+  assert.equal(after.pendingReveal, null);
+  assert.equal(after.selectedGap, null);
+});
+
+test("no gap clicks while revealing", () => {
+  assert.equal(gapCommand(pending(), "alice", 1), null);
+});
+
+test("build-up texts", () => {
+  const others = turnView(pending(), "alice");
+  assert.equal(others.heading, "Locked in");
+  assert.equal(others.description, "Carol locked in. Revealing…");
+  assert.equal(others.revealAtUtc, 10_000);
+  assert.equal(
+    turnView(pending(), "carol").description,
+    "You locked in. Revealing…",
+  );
 });
