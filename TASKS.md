@@ -2,7 +2,7 @@
 
 Work through tasks in order; commit each after verification. Design references: [ARCHITECTURE.md](ARCHITECTURE.md) and [INFRASTRUCTURE.md](INFRASTRUCTURE.md).
 
-**Current state:** Tasks 1–15 have separate commits. Vite app and tests work locally; an Amplify sandbox runs in `eu-central-1` using `AWS_PROFILE=chreisel`. Guest host/join and per-room AppSync authorization were exercised in the sandbox. This is **not a deployed playable multiplayer game**. Task 16 is launched; the owner's two-device check is open. The GitHub repository is `chrseidel/round-about-game` (private), `origin` is `git@github.com:chrseidel/round-about-game.git`, and the Check workflow runs on pushes and PRs to `main`. Do not commit `amplify_outputs.json` or `.amplify/`.
+**Current state:** Tasks 1–16 are complete. The game is live at `https://round-about.chreisel.net` and deploys from `main` via Amplify Hosting; the development sandbox `round-about-dev` runs in `eu-central-1` using `AWS_PROFILE=chreisel`. The GitHub repository `chrseidel/round-about-game` is public, `origin` is `git@github.com:chrseidel/round-about-game.git`, and `main` is protected: changes arrive by pull request after the `check` workflow passes. Do not commit `amplify_outputs.json` or `.amplify/`.
 
 ## 1. Establish maintainable project tooling
 
@@ -36,7 +36,7 @@ Work through tasks in order; commit each after verification. Design references: 
 
 ## 4. Add PR verification in GitHub
 
-**Status:** Workflow committed in `6c3a4b0`; it runs on GitHub since 2026-10-12 (the first run exposed a broken lockfile, fixed in `3668a0e`). Branch protection is **not available** for a private repository on GitHub Free. Decision 2026-10-12: accept the gap for now (CI still runs on every push and PR); revisit before production deployment (Task 16).
+**Status:** Workflow committed in `6c3a4b0`; it runs on GitHub since 2026-10-12 (the first run exposed a broken lockfile, fixed in `3668a0e`). Branch protection is **not available** for a private repository on GitHub Free. Decision 2026-10-12: accept the gap for now (CI still runs on every push and PR); revisit before production deployment (Task 16). Resolved 2026-10-13: the repository is public and `main` is protected for everyone, admins included (pull requests required, `check` must pass, no force pushes or deletion).
 
 **Context:** `main` will auto-deploy when changes land. Bad PRs must fail before merge.
 
@@ -156,7 +156,7 @@ Work through tasks in order; commit each after verification. Design references: 
 
 ## 16. Configure automatic GitHub `main` deployment
 
-**Status:** Launched 2026-10-13 at `https://round-about.chreisel.net` (Amplify app `round-about-game`, `d25cphjw1kxoxa`; PR #1). Verified: the merge build ran `npm run check` before `pipeline-deploy`; separate production stack; certificate valid; direct `/s/<code>` links load; CORS accepts only the production origins; production API smoke passed (events after the first-deploy warm-up, lobby, clue, reveal); a full turn in three browser tabs revealed within 228 ms. Remaining: the owner's two-device check from docs/SMOKE.md. A failing build blocking a deploy is guaranteed by `amplify.yml` order but has not been triggered deliberately.
+**Status:** Completed; launched 2026-10-13 at `https://round-about.chreisel.net` (Amplify app `round-about-game`, `d25cphjw1kxoxa`; PR #1). Verified: the merge build ran `npm run check` before `pipeline-deploy`; separate production stack; certificate valid; direct `/s/<code>` links load; CORS accepts only the production origins; production API smoke passed (events after the first-deploy warm-up, lobby, clue, reveal); a full turn in three browser tabs revealed within 228 ms. The owner's two-device check (laptop + phone) passed 2026-10-13 after the follow-up PR #2 (trailing-slash invite links, launch notes) deployed. A failing build blocking a deploy is guaranteed by `amplify.yml` order but has not been triggered deliberately.
 
 **Context:** After dev flow passes, production should update when a PR is merged to `main`, using Amplify as only deploy trigger.
 
