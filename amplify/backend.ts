@@ -36,6 +36,7 @@ import { eventAuth } from "./functions/event-auth/resource.js";
 import { eventPublisher } from "./functions/event-publisher/resource.js";
 import { deadlineScheduler } from "./functions/deadline-scheduler/resource.js";
 import { timeout } from "./functions/timeout/resource.js";
+import { allowedOrigins } from "./origins.js";
 
 const backend = defineBackend({
   gameApi,
@@ -70,8 +71,8 @@ authorizerFunction.addPropertyOverride(
 
 const api = new HttpApi(stack, "GameHttpApi", {
   corsPreflight: {
-    // Replace with the Amplify Hosting domain during the production deployment.
-    allowOrigins: ["http://localhost:5173", "http://127.0.0.1:5173"],
+    // Production builds allow the game domain; the sandbox allows localhost.
+    allowOrigins: allowedOrigins(process.env),
     allowMethods: [CorsHttpMethod.GET, CorsHttpMethod.POST],
     allowHeaders: ["content-type", "authorization"],
   },

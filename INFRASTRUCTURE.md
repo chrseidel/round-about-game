@@ -1,6 +1,6 @@
 # Round About: infrastructure and deployment plan
 
-**Status:** proposed infrastructure, not deployed. Companion to [ARCHITECTURE.md](ARCHITECTURE.md), which covers game rules, server authority, participant permissions and synchronized Reveal. Target: small groups, ~50 players and ~100 games/month. One GitHub repository; `main` is production.
+**Status:** development sandbox deployed and verified (Tasks 5–15); production via Amplify Hosting at `https://round-about.chreisel.net` prepared in Task 16 (see DEVELOPMENT_HANDOFF.md, launch checklist). Companion to [ARCHITECTURE.md](ARCHITECTURE.md), which covers game rules, server authority, participant permissions and synchronized Reveal. Target: small groups, ~50 players and ~100 games/month. One GitHub repository; `main` is production.
 
 ## Traffic path
 

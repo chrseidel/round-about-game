@@ -156,7 +156,7 @@ Work through tasks in order; commit each after verification. Design references: 
 
 ## 16. Configure automatic GitHub `main` deployment
 
-**Status:** Pending. Revisit the branch-protection gap from Task 4 first.
+**Status:** In progress (branch `task-16-production`). Repository ready: `amplify.yml`, origins by branch, 14-day log retention; `main` protected (pull requests, `check` required, admins included). Launch waits for the Lambda quota increase (support case opened 2026-10-13), then the launch checklist in DEVELOPMENT_HANDOFF.md.
 
 **Context:** After dev flow passes, production should update when a PR is merged to `main`, using Amplify as only deploy trigger.
 

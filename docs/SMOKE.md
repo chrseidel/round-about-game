@@ -4,7 +4,7 @@ How to check that Round About works after a deploy. All commands run from the re
 
 ## Development sandbox (`round-about-dev`)
 
-Run after every sandbox deploy (`AWS_PROFILE=chreisel npx ampx sandbox --once --identifier round-about-dev`). New stream triggers need about a minute after a deploy before they deliver.
+Run after every sandbox deploy (`AWS_PROFILE=chreisel npx ampx sandbox --once --identifier round-about-dev`). After any deploy that creates or updates functions, give the stream triggers about a minute before running the checks; an immediate run can miss the first live event.
 
 ```bash
 AWS_PROFILE=chreisel npm run smoke:dev
@@ -27,7 +27,7 @@ Run after the first production deploy and after any backend change. **Never run 
 1. Get the production endpoints (`gameApiUrl`, `gameEventsUrl`) from the production branch's outputs, for example:
 
    ```bash
-   AWS_PROFILE=chreisel npx ampx generate outputs --app-id <amplify-app-id> --branch main --out-dir /tmp/prod-outputs
+   AWS_PROFILE=chreisel npx ampx generate outputs --app-id <app-id of the Amplify app "round-about"> --branch main --out-dir /tmp/prod-outputs
    ```
 
 2. Run the API-only checks with those values:
@@ -51,5 +51,6 @@ Run after the first production deploy and after any backend change. **Never run 
 ## When something fails
 
 - **A script fails:** it prints which step and what it saw. Rerun once: a brand-new stream trigger right after a deploy can miss the first event.
-- **Alarms** (CloudWatch → Alarms, `eu-central-1`): `LambdaThrottlesAlarm` means the account's Lambda concurrency limit was hit (currently 10; raise it in Service Quotas); `GameApiServerErrorsAlarm` means the API answered 5xx; the three `…FailuresAlarm` mean timeouts, deadline scheduling or event publishing failed repeatedly.
-- **Logs:** CloudWatch → Log groups → `/aws/lambda/amplify-roundabout-…` (game API, timeout, deadline scheduler, event publisher, event auth). Logs contain only error names, never tokens or card numbers.
+- **Alarms** (CloudWatch → Alarms, `eu-central-1`): `LambdaThrottlesAlarm` means the account's Lambda concurrency limit was hit (10 until the requested increase is approved; Service Quotas → AWS Lambda → Concurrent executions); `GameApiServerErrorsAlarm` means the API answered 5xx; the three `…FailuresAlarm` mean timeouts, deadline scheduling or event publishing failed repeatedly.
+- **Logs:** CloudWatch → Log groups → `amplify-roundabout-…-loggroup…` (one per function: game API, timeout, deadline scheduler, event publisher, event auth; kept 14 days). The older `/aws/lambda/amplify-roundabout-…` groups no longer receive logs. Logs contain only error names, never tokens or card numbers.
+- **Deploys:** Amplify console → app `round-about` → branch `main` shows each build, its log and status; a failed `npm run check` or build stops the deploy and leaves the previous version live.
