@@ -2,6 +2,7 @@
 
 - For unfinished multiplayer work, read `DEVELOPMENT_HANDOFF.md` and the per-task statuses in `TASKS.md` before editing. Tasks 1–8 are committed; continue with Task 9. Commit each task separately from documentation changes. `amplify/backend.ts` is the single source of truth for AWS resources: redeploy the sandbox after backend changes and never leave spike-only resources deployed.
 
+- After `npm install <package>`, run `npm install --package-lock-only` and check `npm ci --dry-run`: npm drops nested lockfile entries Amplify needs, which breaks CI.
 - Vite prototype: `npm ci`, `npm run dev`, `npm run check`, `npm run build`. `index.html` loads `web/main.ts`, which currently imports legacy `app.js`; UI is split into `web/board.ts` and `web/panel.ts` while rules are being extracted.
 - Verify logic with `npm test`; run one case with `node --test --test-name-pattern='pattern' game.test.cjs`. Tests bundle `app.js` with esbuild and execute it in a stubbed DOM via `node:vm`, not a browser.
 - Keep UI sparse: one numbered-and-worded circle, one compact turn panel. Do not add a second card list or lengthy on-screen rules.

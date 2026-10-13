@@ -2,7 +2,7 @@
 
 Work through tasks in order; commit each after verification. Design references: [ARCHITECTURE.md](ARCHITECTURE.md) and [INFRASTRUCTURE.md](INFRASTRUCTURE.md).
 
-**Current state:** Tasks 1–9 have separate commits. Vite app and tests work locally; an Amplify sandbox runs in `eu-central-1` using `AWS_PROFILE=chreisel`. Guest host/join and per-room AppSync authorization were exercised in the sandbox. This is **not a deployed playable multiplayer game**. Tasks 10–16 are pending. The GitHub repository is `chrseidel/round-about-game` (private), `origin` is `git@github.com:chrseidel/round-about-game.git`, and the Check workflow runs on pushes and PRs to `main`. Do not commit `amplify_outputs.json` or `.amplify/`.
+**Current state:** Tasks 1–10 have separate commits. Vite app and tests work locally; an Amplify sandbox runs in `eu-central-1` using `AWS_PROFILE=chreisel`. Guest host/join and per-room AppSync authorization were exercised in the sandbox. This is **not a deployed playable multiplayer game**. Tasks 11–16 are pending. The GitHub repository is `chrseidel/round-about-game` (private), `origin` is `git@github.com:chrseidel/round-about-game.git`, and the Check workflow runs on pushes and PRs to `main`. Do not commit `amplify_outputs.json` or `.amplify/`.
 
 ## 1. Establish maintainable project tooling
 
@@ -96,7 +96,7 @@ Work through tasks in order; commit each after verification. Design references: 
 
 ## 10. Add server deadlines and timeout delivery
 
-**Status:** Pending.
+**Status:** Completed; `c939141`. Design: [docs/superpowers/specs/2026-10-13-task-10-deadlines-design.md](docs/superpowers/specs/2026-10-13-task-10-deadlines-design.md). Verified 2026-10-13 with `scripts/check-timeouts.ts`: grace, discard and Overtime loss broadcast 0.8–1.9 s after their deadlines; stale messages change nothing. Alarms exist and are OK; making one fire is Task 15.
 
 **Context:** Browser countdown is visual; server decides whether a command meets 20-second clue, 3-second grace and 20-second Overtime deadlines.
 
