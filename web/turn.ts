@@ -74,13 +74,13 @@ export function turnView(
             "Your card",
             "Connect the two words around your number. Press Send word in time.",
             "write",
-            "CLUE TIME",
+            "Clue time",
           )
         : view(
             "Listen closely",
             `${tipster} is thinking of a word.`,
             "wait",
-            "CLUE TIME",
+            "Clue time",
           );
     case "grace":
       return isTipster
@@ -88,24 +88,24 @@ export function turnView(
             "Last chance",
             "3 seconds to send your word.",
             "write",
-            "FINAL SECONDS",
+            "Final seconds",
           )
-        : view("Listen closely", "Last seconds…", "wait", "FINAL SECONDS");
+        : view("Listen closely", "Last seconds…", "wait", "Final seconds");
     case "guess":
       return isTipster
         ? view(
             "Team is guessing",
-            `Your word: ${snapshot.clue}. The team is guessing.`,
+            `Your word: ${snapshot.clue}. The team is picking an exit.`,
             "none",
-            "DISCUSSION",
+            "Discussion",
           )
         : view(
-            "Choose a gap.",
+            "Pick the exit",
             snapshot.selectedGap === null
-              ? `The word is ${snapshot.clue}.`
-              : "Tap ⌛ again to lock it in.",
+              ? `The clue is ${snapshot.clue}. Tap an exit to suggest it.`
+              : "Tap the blinking exit again to lock it in, or tap another exit.",
             "none",
-            "DISCUSSION",
+            "Discussion",
           );
     case "result": {
       // The game goes on: the Tipster draws next, everyone else waits.
@@ -126,7 +126,7 @@ export function turnView(
         return next(view("Card discarded", "Time ran out."));
       const word = (number?: number) =>
         snapshot.cards.find((card) => card.number === number)?.word ?? "";
-      const placed = `${snapshot.clue} · ${result.number} sits between ${word(result.lower)} and ${word(result.upper)}.`;
+      const placed = `${snapshot.clue}: ${result.number} sits between ${word(result.lower)} and ${word(result.upper)}.`;
       const after = result.lost
         ? " Overtime ended."
         : result.correct
@@ -138,7 +138,7 @@ export function turnView(
             ? "Correct!"
             : result.timedOut
               ? "Time ran out"
-              : "Wrong gap",
+              : "Wrong exit",
           placed + after,
         ),
         tone: result.correct ? "good" : "bad",
@@ -147,6 +147,67 @@ export function turnView(
     default:
       return view("", "");
   }
+}
+
+export type IslandView = {
+  kind: "logo" | "thinking" | "secret" | "clue";
+  title: string;
+  text: string;
+};
+
+/**
+ * What the roundabout's centre island shows. Only the Tipster's own snapshot
+ * carries currentDraw, so the secret never reaches a Guesser's island.
+ */
+export function islandView(
+  snapshot: CallerSnapshot,
+  participantId: string,
+): IslandView {
+  const isTipster = participantId === snapshot.tipsterId;
+  const tipster =
+    snapshot.participants.find((player) => player.id === snapshot.tipsterId)
+      ?.nickname ?? "The Tipster";
+  const thinking = snapshot.phase === "tip" || snapshot.phase === "grace";
+  if (thinking && isTipster && snapshot.currentDraw !== undefined)
+    return {
+      kind: "secret",
+      title: "Your secret number",
+      text: String(snapshot.currentDraw),
+    };
+  if (thinking)
+    return {
+      kind: "thinking",
+      title: `${tipster} is thinking`,
+      text: "of a word",
+    };
+  if (
+    snapshot.clue &&
+    (snapshot.phase === "guess" || snapshot.phase === "result")
+  )
+    return {
+      kind: "clue",
+      title: isTipster ? "Your clue" : `${tipster}'s clue`,
+      text: snapshot.clue,
+    };
+  return { kind: "logo", title: "", text: "" };
+}
+
+/** Accessible name of the exit after card `index` (the last one wraps to 0/100). */
+export function exitLabel(
+  cards: { number: number; word: string }[],
+  index: number,
+): string {
+  const sign = (card: { number: number; word: string }) =>
+    `${card.number === 0 ? "0/100" : card.number} ${card.word}`;
+  return `Exit between ${sign(cards[index]!)} and ${sign(cards[(index + 1) % cards.length]!)}`;
+}
+
+/** Index of the correct exit in the pre-reveal circle, while a reveal is pending. */
+export function correctExit(snapshot: CallerSnapshot): number | null {
+  const lower = snapshot.pendingReveal?.result.lower;
+  if (lower === undefined) return null;
+  const index = snapshot.cards.findIndex((card) => card.number === lower);
+  return index === -1 ? null : index;
 }
 
 /**
@@ -283,29 +344,30 @@ export function renderTurn(
       button.addEventListener("click", actions.join);
       content.append(button);
     }
-    if (view.mode === "write") {
-      const card = element("div", "secret-card");
-      card.append(
-        element("span", "secret-label", "TIPSTER ONLY"),
-        element("span", "secret-number", String(view.secret ?? "…")),
-      );
-      content.append(card);
-    }
     if (view.countdown) {
+      // The secret number itself sits on the roundabout's island.
       const row = element("div", "timer-row");
+      row.id = "timerRow";
+      const light = element("span", "traffic-light");
+      light.setAttribute("aria-hidden", "true");
+      light.append(
+        element("span", "lamp red"),
+        element("span", "lamp amber"),
+        element("span", "lamp green"),
+      );
       const value = element("span", "timer-value", "");
       value.id = "timerValue";
-      row.append(element("span", "timer-label", view.timerLabel), value);
+      row.append(light, element("span", "timer-label", view.timerLabel), value);
       content.append(row);
     }
     if (view.mode === "write") {
-      const label = element("label", "field-label", "ONE-WORD CLUE");
+      const label = element("label", "field-label", "Your one-word clue");
       label.setAttribute("for", "clueInput");
       const input = document.createElement("input");
       input.className = "clue-input";
       input.id = "clueInput";
       input.maxLength = 40;
-      input.placeholder = "Type privately...";
+      input.placeholder = "Only you see what you type";
       input.autocomplete = "off";
       input.value = draft;
       input.addEventListener("input", () => actions.edit(input.value));
