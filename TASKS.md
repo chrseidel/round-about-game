@@ -1,6 +1,6 @@
 # Round About: ordered build tasks
 
-Work through tasks in order; commit each after verification. Design references: [ARCHITECTURE.md](ARCHITECTURE.md) and [INFRASTRUCTURE.md](INFRASTRUCTURE.md).
+The 16 tasks that built the multiplayer game, in order, with how each was verified. All are complete; keep this file as the record and track new work in pull requests. Design references: [ARCHITECTURE.md](ARCHITECTURE.md) and [INFRASTRUCTURE.md](INFRASTRUCTURE.md).
 
 **Current state:** Tasks 1–16 are complete. The game is live at `https://round-about.chreisel.net` and deploys from `main` via Amplify Hosting; the development sandbox `round-about-dev` runs in `eu-central-1` using `AWS_PROFILE=chreisel`. The GitHub repository `chrseidel/round-about-game` is public, `origin` is `git@github.com:chrseidel/round-about-game.git`, and `main` is protected: changes arrive by pull request after the `check` workflow passes. Do not commit `amplify_outputs.json` or `.amplify/`.
 
@@ -56,7 +56,7 @@ Work through tasks in order; commit each after verification. Design references: 
 
 ## 6. Implement host/join and anonymous participant identity
 
-**Status:** Completed; `53eb414`. Guest session API exercised in sandbox; multiplayer gameplay UI still pending.
+**Status:** Completed; `53eb414`. Guest session API exercised in sandbox; the gameplay UI followed in Tasks 9–14.
 
 **Context:** Players use nicknames, not accounts. SQUID is shareable but must not authenticate players or grant the Tipster's secret.
 
@@ -156,7 +156,7 @@ Work through tasks in order; commit each after verification. Design references: 
 
 ## 16. Configure automatic GitHub `main` deployment
 
-**Status:** Completed; launched 2026-10-13 at `https://round-about.chreisel.net` (Amplify app `round-about-game`, `d25cphjw1kxoxa`; PR #1). Verified: the merge build ran `npm run check` before `pipeline-deploy`; separate production stack; certificate valid; direct `/s/<code>` links load; CORS accepts only the production origins; production API smoke passed (events after the first-deploy warm-up, lobby, clue, reveal); a full turn in three browser tabs revealed within 228 ms. The owner's two-device check (laptop + phone) passed 2026-10-13 after the follow-up PR #2 (trailing-slash invite links, launch notes) deployed. A failing build blocking a deploy is guaranteed by `amplify.yml` order but has not been triggered deliberately.
+**Status:** Completed; launched 2026-10-13 at `https://round-about.chreisel.net` (Amplify app `round-about-game`, `d25cphjw1kxoxa`; PR #1). Verified: the merge build ran `npm run check` before `pipeline-deploy`; separate production stack; certificate valid; direct `/s/<code>` links load; CORS accepts only the production origins; production API smoke passed (events after the first-deploy warm-up, lobby, clue, reveal); a full turn in three browser tabs revealed within 228 ms. The owner's two-device check (laptop + phone) passed 2026-10-13 after the follow-up PR #2 (trailing-slash invite links, launch notes) deployed. Decisions: no PR previews; alarms without notifications; the existing account-wide AWS Budget (USD 50/month) serves as the budget alert. A failing build blocking a deploy follows from the `amplify.yml` order but has not been triggered deliberately.
 
 **Context:** After dev flow passes, production should update when a PR is merged to `main`, using Amplify as only deploy trigger.
 

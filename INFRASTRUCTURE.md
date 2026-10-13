@@ -1,75 +1,66 @@
-# Round About: infrastructure and deployment plan
+# Round About: infrastructure and deployment
 
-**Status:** development sandbox deployed and verified (Tasks 5–15); production live via Amplify Hosting at `https://round-about.chreisel.net` since 2026-10-13 (Task 16; see DEVELOPMENT_HANDOFF.md). Companion to [ARCHITECTURE.md](ARCHITECTURE.md), which covers game rules, server authority, participant permissions and synchronized Reveal. Target: small groups, ~50 players and ~100 games/month. One GitHub repository; `main` is production.
+**Status:** production live at `https://round-about.chreisel.net` since 2026-10-13; development sandbox `round-about-dev`. Both run in `eu-central-1` in the owner's account (`AWS_PROFILE=chreisel`). Game behavior and security boundaries are in [ARCHITECTURE.md](ARCHITECTURE.md). **The exact resources are defined in [`amplify/backend.ts`](amplify/backend.ts)**, the single source of truth; this page explains how they fit together and how they are deployed.
 
 ## Traffic path
 
 ```text
-GitHub PR ──► checks ──merge──► main ──► Amplify Hosting build/deploy
-                                            │
-                                    static browser app
-                                            │
-                        ┌── HTTPS ──► HTTP API ──► game Lambda ──► DynamoDB
-                        │                         └─► SQS delay ──► timeout Lambda
-                        └── WSS ───► AppSync Events ◄─ backend-only publish
+GitHub PR ──► check workflow ──merge──► main ──► Amplify Hosting build (amplify.yml)
+                                                   │ checks → backend deploy → frontend build
+                                                   ▼
+browser ── HTTPS ──► HTTP API ──► game-api Lambda ──► DynamoDB Sessions table
+   │                                                    │ stream (NEW_IMAGE)
+   │                                     ┌──────────────┴──────────────┐
+   │                                     ▼                             ▼
+   │                           event-publisher Lambda        deadline-scheduler Lambda
+   │                                     │ IAM publish                 │ delayed message
+   └── WSS ──► AppSync Events ◄──────────┘                   SQS TimeoutQueue ──► timeout Lambda
+              (event-auth Lambda checks membership)                               (writes table)
 ```
 
-| Component | Purpose | Deployment/ownership |
+## Components
+
+| Component | Role |
+| --- | --- |
+| **Amplify Hosting** (app `round-about-game`, `d25cphjw1kxoxa`) | Builds `main` on every push, deploys its backend stack and serves the static app over CloudFront. Custom domain `round-about.chreisel.net` (Amplify-managed certificate, one CNAME in the `chreisel.net` Route 53 zone). A 200 rewrite sends extension-less paths such as `/s/<code>` to `/index.html`; it must stay **before** Amplify's default `/<*>` 404 rule. PR previews are off. |
+| **HTTP API** → `game-api` Lambda | Host, join, snapshot and command endpoints. CORS allows only the production origins in Amplify builds and only `localhost:5173` in the sandbox (`amplify/origins.ts`). |
+| **DynamoDB `Sessions`** | One item per session, on-demand, TTL on `expiresAt` (24 h; 10 min after a session is replaced). Retained if the production stack is deleted. Browsers never access it directly. |
+| **Table stream → `event-publisher`** | Publishes the public projection of every committed write to AppSync channel `/games/{squid}`; retries 5 times, then records the failure in the `EventPublishFailures` queue. Only this function may publish. |
+| **AppSync Events** (namespace `games`) | WebSocket fan-out. Subscribing requires a participant token of that session, checked by the `event-auth` Lambda authorizer; browsers cannot publish. |
+| **Table stream → `deadline-scheduler` → `TimeoutQueue` → `timeout`** | Every saved deadline becomes a delayed SQS message (SQUID, turn, phase, deadline; no card values). `timeout` applies it only if it still matches. The API also reconciles due deadlines on every read and command, so a late message never extends play. Failures go to `DeadlineScheduleFailures` and `TimeoutFailures`. |
+| **CloudWatch** | Five alarms, without notifications: the three failure queues, `LambdaThrottlesAlarm` and `GameApiServerErrorsAlarm` (HTTP 5xx). Function logs are kept 14 days. |
+
+No Cognito, VPC, NAT gateway, always-on server or GitHub-held AWS credentials.
+
+## Environments
+
+| | Production | Development sandbox |
 | --- | --- | --- |
-| **Amplify Gen 2 app + Hosting** | Connect GitHub `main`, build static app and backend together on merges, serve site over HTTPS/CDN, provide generated domain and optional custom domain; rewrite `/s/{squid}` to SPA entry. | One production branch in Amplify; managed hosting/CDN. No SSR or always-on compute. |
-| **AWS CDK resources in `amplify/backend.ts`** | Declare backend alongside frontend deployment; grant least-privilege permissions and export **public** API endpoints/region to frontend configuration. | Amplify Gen 2 branch deployment. HTTP API, AppSync Event API and SQS are **custom CDK resources**, not automatic `a.model()` resources. |
-| **API Gateway HTTP API** | Host/join, authorized snapshots, game commands and participant credentials; one endpoint for browser actions. | Calls Lambda; restrict browser origins, throttle creates/joins and validate all requests server-side. |
-| **Game Lambda** | Authenticate participant token, enforce host/fixed Tipster/Guesser/phase permissions, apply pure reducer, project public vs. private responses, conditionally commit to DynamoDB, publish shared gap selection and lock-in/result updates. | Stateless; token and drawn number never logged. Draw response goes to Tipster alone. |
-| **DynamoDB on-demand** | Durable session per SQUID: participant nicknames/token hashes, one Tipster seat, shared provisional selected gap, sorted circle, hidden deck/current draw, pile, phase, version and deadlines. Conditional writes grant Tipster to only the first claimant and prevent competing Guessers from locking different gaps; TTL removes stale sessions. | Backend only; never grant browsers direct table access. Keep one session item below DynamoDB item-size limit. |
-| **AppSync Events (Event API)** | Managed WebSocket channels for near-simultaneous shared game updates and Reveal, without our own connection registry. | `games/{squid}` subscription requires per-session membership; only backend IAM role may publish. Client cannot publish or subscribe to other rooms. Verify auth in a deployed spike before choosing this component definitively. |
-| **SQS standard queue + dead-letter queue; timeout Lambda** | Wake backend around 20-second clue expiry, 3-second grace, and 20-second Overtime expiry; retry failed processing. | Delayed messages carry SQUID/turn/phase, **not** secret card values. Server still checks UTC deadlines on every command/read; SQS arrival is not the clock. Alarm on DLQ and late timeouts. |
-| **CloudWatch logs/metrics/alarms** | Observe HTTP errors, auth failures, Lambda faults, missed timeouts, DLQ depth and failed event publishing. | Short log retention and bounded alarms. Avoid logging participant credentials or hidden numbers. |
-| **Route 53 + Amplify-managed TLS (optional)** | Friendly `play.example.com` share URLs; Amplify-provided URL and TLS suffice initially. | Domain/DNS registration independent of application deployment. |
+| Deployed by | Amplify Hosting on every push to `main` | `AWS_PROFILE=chreisel npx ampx sandbox --once --identifier round-about-dev` |
+| Stack | `amplify-d25cphjw1kxoxa-main-branch-…` | `amplify-roundabout-roundaboutdev-sandbox-…` |
+| Frontend | `https://round-about.chreisel.net` | local `npm run dev` (reads the ignored `amplify_outputs.json`) |
+| Endpoints | `npx ampx generate outputs --app-id d25cphjw1kxoxa --branch main` | `amplify_outputs.json` |
+| Allowed scripts | API-only checks (see [docs/SMOKE.md](docs/SMOKE.md)) | everything, including table-writing checks |
 
-No Cognito, Amplify Auth sign-in, email service, chat/video service, VPC/NAT gateway, or dedicated server is needed for v1. A nickname in `localStorage` pre-fills future joins; the API-issued participant token in tab `sessionStorage` proves membership for the current SQUID. SQUID and nickname alone do **not** authorize reading the Tipster's number. Event subscription auth must validate the same membership, not merely channel name or a public API key. The [architecture draft](ARCHITECTURE.md) specifies a fallback to custom API Gateway WebSockets **only if** this AppSync membership/publish boundary fails a deployment spike; do not deploy both in production.
+The environments share nothing except the account's Lambda concurrency quota.
 
-## GitHub → production pipeline
+## Deployment pipeline
 
-Use **Amplify Hosting's GitHub connection as the only deployment trigger**. GitHub Actions checks pull requests but does not independently deploy to AWS; this avoids duplicate releases, long-lived AWS credentials in GitHub and mismatched frontend/backend versions.
+1. **Pull request:** GitHub Actions (`.github/workflows/check.yml`) runs `npm ci` and `npm run check`. Branch protection on `main` (admins included) requires a pull request and a passing `check`, and forbids force pushes and deletion. GitHub holds no AWS credentials.
+2. **Merge:** Amplify builds with [`amplify.yml`](amplify.yml): `npm ci`, `npm run check`, `npx ampx pipeline-deploy` (backend), then `npx ampx generate outputs`, `npm run build` and copying `amplify_outputs.json` into `dist/`, where the browser reads its endpoints at startup. A failing step stops the build and the previous frontend stays live.
+3. **Rollout order:** the backend deploys before the frontend is published, so a frontend failure can leave a new backend serving the old frontend. Keep changes backward compatible; fix forward or revert on `main` through a pull request. Never edit production resources or table items by hand.
+4. **After a deploy that touches the backend:** run the production part of [docs/SMOKE.md](docs/SMOKE.md). A brand-new stack's stream triggers took about 3.5 minutes to deliver their first event.
 
-1. **One-time setup:** create the Amplify Gen 2 app, authorize it to read this GitHub repository, connect the `main` branch and enable auto-build. Configure its service role to deploy backend resources. Add an Amplify SPA rewrite for `/s/{squid}`; use the generated Amplify URL or attach a domain. Keep `main` connected only to production backend; test changes with a developer sandbox or isolated preview branch, never against live sessions.
-2. **PR checks (GitHub Actions, `pull_request` targeting `main`):** install from committed lockfile with `npm ci` once the planned TypeScript/Vite migration introduces `package.json`; run formatting/typecheck, game/API tests, frontend build and backend synth. For the **current static prototype**, the runnable checks are `node --check app.js` and `node --test game.test.js`; do not claim nonexistent npm scripts exist yet. Run authorization/projection/integration tests after implementing backend. Configure GitHub branch protection so checks and review must pass before merge. No AWS deployment credentials needed for this CI job. Proposed CI commands (after migration): `npm ci`, `npm run check`, `npm run build`; add a synth-only script when the backend definitions exist.
-3. **Merge to `main`:** GitHub notifies Amplify; its fullstack build installs locked dependencies, runs checks, runs `npx ampx pipeline-deploy --branch "$AWS_BRANCH" --app-id "$AWS_APP_ID"` for backend resources, builds the frontend and serves it with the branch-specific generated endpoint configuration. Store the build specification as `amplify.yml` in repo once build tooling exists (avoid console-only steps that teammates cannot review). Backend deployment precedes frontend publication, so a frontend failure **can leave new backend resources live with old frontend**; keep API/schema changes backward compatible, monitor Amplify deployment failures and fix forward or revert. Check rollout with a host/join smoke test from two devices after backend changes.
-4. **Previews (optional, later):** Amplify PR previews can create isolated fullstack environments for manual two-player tests; tear them down on PR close. AWS documents that fullstack previews with Amplify backend templates require a **private GitHub repository**. If repo is public, use a private dev branch/sandbox instead. Never point preview builds at the production DynamoDB table or Event API. Avoid automatic deployment of *every* feature branch to limit cost/resources.
+Build status and logs: Amplify console → app `round-about-game` → branch `main`.
 
-Example intended `amplify.yml` sequence **after migration** (the `check` script and `dist/` directory are proposed, not present today):
+## Limits and costs
 
-```yaml
-version: 1
-backend:
-  phases:
-    build:
-      commands:
-        - npm ci
-        - npm run check
-        - npx ampx pipeline-deploy --branch "$AWS_BRANCH" --app-id "$AWS_APP_ID"
-frontend:
-  phases:
-    build:
-      commands:
-        - npm run build
-  artifacts:
-    baseDirectory: dist
-    files:
-      - '**/*'
-  cache:
-    paths:
-      - node_modules/**/*
-```
+- **Lambda concurrency:** the account allows 10 concurrent executions in `eu-central-1` (new-account default); an increase to 1000 is requested (support case opened 2026-10-13). Both environments' five functions share it; throttled API calls answer 503 and trigger `LambdaThrottlesAlarm`.
+- **Budget:** an account-wide AWS Budget "My Monthly Cost Budget" (USD 50/month) exists; it is not managed by this repository.
+- At ~100 games a month every component stays in on-demand pricing; there is no idle compute.
 
-Maintain the same `npm run check` in GitHub Actions and Amplify build so an accidental direct push to `main` cannot ship code that fails checks. Protect `main` in GitHub; Amplify auto-build runs on any push, not only a merged PR. Put frontend URLs/region in Amplify-generated outputs; do **not** commit `amplify_outputs.json` for production as a universal local config, or use frontend environment variables for secrets. Add secrets only through Amplify's branch-specific secret management if the backend later needs them. Keep domain and rollback procedure documented: fix-forward or revert/merge on `main`; for a broken release, redeploy a known-good commit via a controlled Git revert rather than changing backend records manually. DynamoDB schema changes must be backward compatible across backend/frontend rollout and existing sessions.
+## Known gaps
 
-## First infrastructure validation
-
-Before committing to real-time implementation, deploy a small isolated Amplify sandbox/dev stack and verify: member can subscribe to `games/{squid}`; nonmember cannot; a browser cannot publish; simultaneous Tipster claims yield one winner; backend broadcasts a Guesser's provisional gap selection to every player; another Guesser's second click on that same current gap locks exactly once; the Tipster cannot submit a guess; no hidden draw is in the event; reconnect catches up via authorized snapshot; and clients display the locked result using the same `revealAtUtc`. Confirm the deployment role can create custom CDK resources in Amplify, the SPA rewrite works on refresh, and delayed queue delivery never overrides a later turn.
-
-## References
-
-- [Amplify Hosting Git-based deployment](https://docs.amplify.aws/react/deploy-and-host/amplify-hosting/) and [fullstack `main` branch deployment](https://docs.amplify.aws/react/deploy-and-host/amplify-hosting/branch-deployments/)
-- [Amplify Gen 2 quickstart: connect GitHub `main`](https://docs.amplify.aws/react/start/quickstart/), [PR preview requirements](https://docs.amplify.aws/react/deploy-and-host/amplify-hosting/pr-previews/), [branch secrets vs. environment variables](https://docs.amplify.aws/react/deploy-and-host/amplify-hosting/secrets-and-vars/)
-- [Amplify custom CDK resources](https://docs.amplify.aws/react/build-a-backend/add-aws-services/custom-resources/), [AppSync Events overview](https://docs.aws.amazon.com/appsync/latest/eventapi/event-api-welcome.html)
+- No rate limiting of creates and joins beyond API Gateway's account defaults; sessions are capped at 12 players.
+- Alarms have no notification target; check the CloudWatch console.
+- The old `/aws/lambda/amplify-roundabout-…` log groups from before 14-day retention still exist (sandbox only, no new logs) and can be deleted.
