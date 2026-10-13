@@ -51,7 +51,9 @@
 - Every snapshot, including command responses, goes through `mergePrivate(latest, next)` in `web/turn.ts`: it drops older versions and keeps the Tipster's `currentDraw` across public events. A draw's public event can arrive before the Tipster's own response with the same version.
 - Decide anything status-related on `revealed(latest, serverNow)`, not on the raw snapshot: no event arrives at the reveal moment, so the raw snapshot keeps the pre-reveal status (this once broke the New game button).
 - Countdowns use `serverTimeUtc` from each snapshot (`secondsLeft`). The typed clue lives only in page memory; the field is rebuilt only when the card changes, so live updates keep focus and draft.
-- `game.css` hides disabled gaps except the selected or locked one (otherwise the Tipster cannot see the team's hourglass). Gaps have an invisible 44 px tap area for phones.
+- Since issue #4 the gaps are drawn as exits (short side roads with chevrons); the selected one blinks for everyone, including the Tipster, whose exits are disabled. Exits have an invisible tap area of at least 44 px.
+- The lobby's name tags counter-rotate against the circling cars. Both are rebuilt together with the same animation offset whenever the player list changes; reading the running animation's `currentTime` instead proved unreliable.
+- The reveal car (`renderDrive` in `web/board.ts`) runs once per `revealAtUtc` via the Web Animations API, so re-renders during the build-up do not restart it. Reduced motion skips it, the lobby's drive and the start sequence.
 - The page reads the session code with `codeFromPath`, which tolerates `/s/<code>/`.
 
 **Testing**

@@ -21,14 +21,14 @@ Multiplayer word-and-number game, live at `https://round-about.chreisel.net`. St
 - `game/rules.ts`: pure reducer, no DOM or AWS imports. Authoritative rules: placement, lives, pile, Overtime, `clueError()`.
 - `shared/protocol.ts`: session, command and snapshot types plus the public/caller projections. `shared/deadlines.ts`: `reconcile()`, `finalStatus()`, timeout helpers.
 - `amplify/functions/game-api/`: HTTP API handler; `session.ts` holds one function per command, `command.ts` dispatches and remembers command IDs. Other functions: `event-auth` (AppSync subscribe authorizer), `event-publisher` (stream → AppSync), `deadline-scheduler` (stream → delayed SQS), `timeout` (applies due deadlines), `shared/db.ts` (`documentClient()`; use it for every writer).
-- `web/`: browser client. `main.ts` wires session entry, lobby (`lobby.ts`) and play (`play.ts`, `turn.ts`, `board.ts`); `events.ts` is the AppSync WebSocket client; `session-api.ts` the HTTP client.
-- `app.js` with `web/panel.ts` is the legacy single-browser prototype, loaded only when no backend is configured; `game.test.cjs` tests it in a stubbed DOM. Do not build new features there.
+- `web/`: browser client. `main.ts` wires session entry, lobby (`lobby.ts`) and play (`play.ts`, `turn.ts`, `board.ts`); `art.ts` holds the shared SVG artwork (road sign, cars, cones); `events.ts` is the AppSync WebSocket client; `session-api.ts` the HTTP client. Without a configured backend the page only shows a "no game server" message.
+- Look and feel: the circle is a roundabout (cards are road signs, gaps are exits), Bungee and Overpass fonts, street colours as CSS variables at the top of `game.css`. Design record: `docs/superpowers/specs/2026-10-13-issue-4-roundabout-design.md`.
 - `scripts/`: smoke and AWS check scripts.
 - `docs/superpowers/specs|plans/`: per-task designs and plans, kept as a historical record; do not update them after the task is done.
 
 ## Game and security invariants
 
-- Keep the UI sparse: one numbered-and-worded circle, one compact turn panel. No second card list, no lengthy on-screen rules.
+- Keep the UI sparse: one roundabout of numbered-and-worded signs, one compact turn panel. No second card list, no lengthy on-screen rules. Call gaps "exits" in all copy.
 - Cards stay in ascending order. Card 0 represents **0/100**; the gap after the last card wraps to card 0 and is a valid guess. A wrong guess still inserts the drawn card in its *correct* gap and costs one life.
 - The 12-card pile is a goal, not a turn limit: a wrong guess on the last card requires replacement draws. No clue after 20 seconds plus 3 seconds' grace discards the card, costs a life and restores one pile card.
 - Losing the third life starts Overtime: 20 seconds to lock a gap; another miss or timeout ends the game. Correctly placing the last card wins even in Overtime.

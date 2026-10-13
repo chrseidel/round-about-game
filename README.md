@@ -22,7 +22,7 @@ npm run dev     # local web app on http://127.0.0.1:5173
 npm run check   # format, typecheck, tests, build — the same gate CI and Amplify run
 ```
 
-Without a backend the dev server runs the single-browser prototype. For multiplayer, deploy your own Amplify sandbox (`npx ampx sandbox`), which writes the ignored `amplify_outputs.json` the web app reads.
+The game needs a backend: deploy your own Amplify sandbox (`npx ampx sandbox`), which writes the ignored `amplify_outputs.json` the web app reads. Without it the page only says that no game server is configured.
 
 ## Documentation
 
