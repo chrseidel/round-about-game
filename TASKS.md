@@ -2,7 +2,7 @@
 
 Work through tasks in order; commit each after verification. Design references: [ARCHITECTURE.md](ARCHITECTURE.md) and [INFRASTRUCTURE.md](INFRASTRUCTURE.md).
 
-**Current state:** Tasks 1–10 have separate commits. Vite app and tests work locally; an Amplify sandbox runs in `eu-central-1` using `AWS_PROFILE=chreisel`. Guest host/join and per-room AppSync authorization were exercised in the sandbox. This is **not a deployed playable multiplayer game**. Tasks 11–16 are pending. The GitHub repository is `chrseidel/round-about-game` (private), `origin` is `git@github.com:chrseidel/round-about-game.git`, and the Check workflow runs on pushes and PRs to `main`. Do not commit `amplify_outputs.json` or `.amplify/`.
+**Current state:** Tasks 1–11 have separate commits. Vite app and tests work locally; an Amplify sandbox runs in `eu-central-1` using `AWS_PROFILE=chreisel`. Guest host/join and per-room AppSync authorization were exercised in the sandbox. This is **not a deployed playable multiplayer game**. Tasks 12–16 are pending. The GitHub repository is `chrseidel/round-about-game` (private), `origin` is `git@github.com:chrseidel/round-about-game.git`, and the Check workflow runs on pushes and PRs to `main`. Do not commit `amplify_outputs.json` or `.amplify/`.
 
 ## 1. Establish maintainable project tooling
 
@@ -106,7 +106,7 @@ Work through tasks in order; commit each after verification. Design references: 
 
 ## 11. Connect private draw and explicit clue submission
 
-**Status:** Pending.
+**Status:** Completed; `f30de1a`. Design: [docs/superpowers/specs/2026-10-13-task-11-draw-and-clue-design.md](docs/superpowers/specs/2026-10-13-task-11-draw-and-clue-design.md). Verified 2026-10-13 with `scripts/check-clue.ts` and a three-tab browser test. Sending the word goes straight to guessing (no hand-over step).
 
 **Context:** Fixed Tipster alone sees draw. Typed text is local until they press **Send word**, including during grace.
 
