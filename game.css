@@ -139,3 +139,6 @@ dialog p { color: #889889; font-size: 12px; margin: 0; }
   .ring-gap.locked, .ring-card.is-recent, .life.just-lost { animation: none; }
   .reveal-progress { display: none; }
 }
+/* Gaps are small circles; give them an invisible 44 px tap area (Task 15:
+   at phone width they are 18 px, too small to hit twice reliably). */
+.ring-gap::after { content: ""; position: absolute; inset: -13px; border-radius: 50%; }

@@ -27,6 +27,7 @@ import {
 import {
   Alarm,
   ComparisonOperator,
+  MathExpression,
   TreatMissingData,
 } from "aws-cdk-lib/aws-cloudwatch";
 import { Queue } from "aws-cdk-lib/aws-sqs";
@@ -228,6 +229,41 @@ for (const [id, queue] of [
     comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
     treatMissingData: TreatMissingData.NOT_BREACHING,
   });
+
+// Throttles across all game functions: the account allows only a few
+// concurrent Lambdas, so this is the likeliest production problem.
+const gameFunctions = [
+  backend.gameApi.resources.lambda,
+  backend.eventAuth.resources.lambda,
+  publisher,
+  scheduler,
+  timeoutFunction,
+];
+new Alarm(stack, "LambdaThrottlesAlarm", {
+  metric: new MathExpression({
+    expression: gameFunctions.map((_, i) => `t${i}`).join("+"),
+    usingMetrics: Object.fromEntries(
+      gameFunctions.map((fn, i) => [
+        `t${i}`,
+        fn.metricThrottles({ period: Duration.seconds(60), statistic: "Sum" }),
+      ]),
+    ),
+    period: Duration.seconds(60),
+  }),
+  threshold: 1,
+  evaluationPeriods: 1,
+  comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+  treatMissingData: TreatMissingData.NOT_BREACHING,
+});
+// The game API answers its own exceptions with 500, so Lambda's Errors
+// metric misses them; the API's 5xx count catches those and throttles.
+new Alarm(stack, "GameApiServerErrorsAlarm", {
+  metric: api.metricServerError({ period: Duration.seconds(300) }),
+  threshold: 1,
+  evaluationPeriods: 1,
+  comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+  treatMissingData: TreatMissingData.NOT_BREACHING,
+});
 
 backend.addOutput({
   custom: {
