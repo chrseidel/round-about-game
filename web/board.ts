@@ -23,7 +23,7 @@ function escapeHtml(value: string) {
 
 export function renderBoard(
   state: BoardState,
-  selectGap: (index: number) => void,
+  selectGap?: (index: number) => void,
 ) {
   const ring = $("#ringCards");
   const board = $("#board");
@@ -50,11 +50,11 @@ export function renderBoard(
     gap.textContent = state.selectedGap === index ? "⌛" : "+";
     gap.title = `Between ${cardData.word} and ${state.cards[(index + 1) % count]!.word}`;
     gap.setAttribute("aria-label", gap.title);
-    gap.disabled = state.phase !== "guess";
+    gap.disabled = !selectGap || state.phase !== "guess";
     const gapRadius = radius + (board.clientWidth < 360 ? 23 : 29);
     gap.style.left = `calc(50% + ${Math.cos(gapAngle) * gapRadius}px)`;
     gap.style.top = `calc(50% + ${Math.sin(gapAngle) * gapRadius}px)`;
-    gap.addEventListener("click", () => selectGap(index));
+    if (selectGap) gap.addEventListener("click", () => selectGap(index));
     ring.append(gap);
   });
 

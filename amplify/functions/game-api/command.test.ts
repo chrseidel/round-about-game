@@ -38,6 +38,19 @@ test("parse rejects malformed requests", () => {
   invalidInput(() => parseCommandRequest({ ...valid, command: { type: 7 } }));
 });
 
+test("parse requires a clue string", () => {
+  invalidInput(() =>
+    parseCommandRequest({ ...valid, command: { type: "SUBMIT_CLUE" } }),
+  );
+  assert.equal(
+    parseCommandRequest({
+      ...valid,
+      command: { type: "SUBMIT_CLUE", clue: "river" },
+    }).command.type,
+    "SUBMIT_CLUE",
+  );
+});
+
 test("parse accepts a valid claim", () => {
   assert.equal(parseCommandRequest(valid).command.type, "CLAIM_TIPSTER");
 });
@@ -50,7 +63,7 @@ test("apply dispatches and rejects later commands", () => {
     participantId,
   );
   assert.throws(
-    () => applyCommand(session, participantId, { type: "DRAW" }, 10_000),
+    () => applyCommand(session, participantId, { type: "NEXT_TURN" }, 10_000),
     /Not available yet\./,
   );
 });

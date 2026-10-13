@@ -5,7 +5,13 @@ import {
   type SessionCommand,
 } from "../../../shared/protocol.ts";
 import { reconcile } from "../../../shared/deadlines.ts";
-import { claimTipster, CommandError, startGame } from "./session.ts";
+import {
+  claimTipster,
+  CommandError,
+  drawCard,
+  startGame,
+  submitClue,
+} from "./session.ts";
 
 /** Validates the envelope; only the command's type is trusted from the body. */
 export function parseCommandRequest(value: unknown): CommandRequest {
@@ -18,7 +24,9 @@ export function parseCommandRequest(value: unknown): CommandRequest {
     request.commandId.length > 64 ||
     !request.command ||
     typeof request.command !== "object" ||
-    typeof request.command.type !== "string"
+    typeof request.command.type !== "string" ||
+    (request.command.type === "SUBMIT_CLUE" &&
+      typeof (request.command as { clue?: unknown }).clue !== "string")
   )
     throw new CommandError("INVALID_INPUT", "Invalid command.");
   return request as CommandRequest;
@@ -37,6 +45,10 @@ export function applyCommand(
       return claimTipster(current, participantId);
     case "START":
       return startGame(current, participantId);
+    case "DRAW":
+      return drawCard(current, participantId, now);
+    case "SUBMIT_CLUE":
+      return submitClue(current, participantId, command.clue, now);
     default:
       throw new CommandError("INVALID_INPUT", "Not available yet.");
   }

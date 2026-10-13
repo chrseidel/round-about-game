@@ -44,6 +44,8 @@ export type PublicSnapshot = {
   deadlineUtc: number | null;
   result: PublicResult | null;
   revealAtUtc: number | null;
+  /** Server clock when the snapshot was made; browsers correct countdowns with it. */
+  serverTimeUtc: number;
   pendingReveal: {
     cards: { number: number; word: string }[];
     result: PublicResult;
@@ -159,6 +161,7 @@ export function projectPublic(session: Session, now: number): PublicSnapshot {
     deadlineUtc: game.deadline,
     result: revealPending ? null : publicResult(game.lastResult, game.current),
     revealAtUtc: session.revealAtUtc,
+    serverTimeUtc: now,
     pendingReveal:
       revealPending && pendingResult
         ? {

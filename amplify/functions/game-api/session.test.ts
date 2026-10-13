@@ -4,13 +4,17 @@ import {
   authenticate,
   claimTipster,
   CommandError,
+  drawCard,
   joinSession,
   newSession,
   nickname,
   normalizeSquid,
   MAX_PLAYERS,
   startGame,
+  submitClue,
 } from "./session.ts";
+import { clueError } from "../../../game/rules.ts";
+import { reconcile } from "../../../shared/deadlines.ts";
 import { projectCaller } from "../../../shared/protocol.ts";
 
 test("hosting issues a unique secret per participant; invite code alone is insufficient", () => {
@@ -142,5 +146,77 @@ test("late joiner after start is a Guesser and cannot claim", () => {
     () => claimTipster(late.session, late.participantId),
     "INVALID_PHASE",
     "The game has already started.",
+  );
+});
+
+function playing() {
+  const { session, host, bob, carol } = lobby();
+  return {
+    session: startGame(claimTipster(session, bob), host),
+    bob,
+    carol,
+  };
+}
+
+test("draw: only the Tipster, once per card", () => {
+  const { session, bob, carol } = playing();
+  rejects(
+    () => drawCard(session, carol, 0),
+    "FORBIDDEN",
+    "Only the Tipster can draw.",
+  );
+  const { session: waiting, bob: tipster } = lobby();
+  rejects(
+    () => drawCard({ ...waiting, tipsterId: tipster }, tipster, 0),
+    "INVALID_PHASE",
+    "The game has not started.",
+  );
+  const drawn = drawCard(session, bob, 0);
+  assert.equal(drawn.game.phase, "tip");
+  assert.notEqual(drawn.game.current, null);
+  assert.equal(drawn.game.deadline, 20_000);
+  assert.equal(drawn.version, session.version + 1);
+  assert.equal(drawCard(drawn, bob, 1_000), drawn);
+});
+
+test("clue: only the Tipster, valid word, in time", () => {
+  const { session, bob, carol } = playing();
+  const drawn = drawCard(session, bob, 0);
+  rejects(
+    () => submitClue(drawn, carol, "river", 1_000),
+    "FORBIDDEN",
+    "Only the Tipster can send the word.",
+  );
+  rejects(
+    () => submitClue(drawn, bob, "two words", 1_000),
+    "INVALID_INPUT",
+    clueError("two words", drawn.game.cards),
+  );
+  const existing = ` ${drawn.game.cards[0]!.word.toLowerCase()} `;
+  rejects(
+    () => submitClue(drawn, bob, existing, 1_000),
+    "INVALID_INPUT",
+    "That word is already in the circle. Choose another.",
+  );
+  const sent = submitClue(drawn, bob, "river", 5_000);
+  assert.equal(sent.game.phase, "guess");
+  assert.equal(sent.game.clue, "river");
+  assert.equal(sent.game.deadline, null);
+  assert.equal(sent.version, drawn.version + 1);
+  assert.equal(submitClue(sent, bob, " river ", 6_000), sent);
+  const overtime = { ...drawn, game: { ...drawn.game, lives: 0 } };
+  assert.equal(submitClue(overtime, bob, "river", 5_000).game.deadline, 25_000);
+});
+
+test("clue in grace is accepted, after expiry it is too late", () => {
+  const { session, bob } = playing();
+  const drawn = drawCard(session, bob, 0);
+  const grace = reconcile(drawn, 21_000);
+  assert.equal(grace.game.phase, "grace");
+  assert.equal(submitClue(grace, bob, "river", 21_000).game.phase, "guess");
+  rejects(
+    () => submitClue(reconcile(drawn, 24_000), bob, "river", 24_000),
+    "INVALID_PHASE",
+    "Time is up for this card.",
   );
 });

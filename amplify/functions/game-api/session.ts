@@ -1,5 +1,5 @@
 import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
-import { createGame } from "../../../game/rules.ts";
+import { apply, clueError, createGame } from "../../../game/rules.ts";
 import { projectCaller, type Session } from "../../../shared/protocol.ts";
 
 const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
@@ -186,4 +186,50 @@ export function startGame(session: Session, participantId: string): Session {
       "At least one Guesser needs to join first.",
     );
   return { ...session, version: session.version + 1, status: "playing" };
+}
+
+/** Tipster-only; a retry while the card is still being described changes nothing. */
+export function drawCard(
+  session: Session,
+  participantId: string,
+  now: number,
+): Session {
+  if (participantId !== session.tipsterId)
+    throw new CommandError("FORBIDDEN", "Only the Tipster can draw.");
+  if (session.status !== "playing")
+    throw new CommandError("INVALID_PHASE", "The game has not started.");
+  if (["tip", "grace"].includes(session.game.phase)) return session;
+  if (session.game.phase !== "ready" || !session.game.deck.length)
+    throw new CommandError("INVALID_PHASE", "No card can be drawn now.");
+  return {
+    ...session,
+    version: session.version + 1,
+    game: apply(session.game, { type: "DRAW" }, now),
+  };
+}
+
+/**
+ * Tipster-only; sending the word goes straight to guessing because every
+ * player has their own screen. Resending the accepted word changes nothing.
+ */
+export function submitClue(
+  session: Session,
+  participantId: string,
+  clue: string,
+  now: number,
+): Session {
+  if (participantId !== session.tipsterId)
+    throw new CommandError("FORBIDDEN", "Only the Tipster can send the word.");
+  const { game } = session;
+  if (game.phase === "guess" && game.clue === clue.trim()) return session;
+  if (session.status !== "playing" || !["tip", "grace"].includes(game.phase))
+    throw new CommandError("INVALID_PHASE", "Time is up for this card.");
+  const error = clueError(clue, game.cards);
+  if (error) throw new CommandError("INVALID_INPUT", error);
+  const sent = apply(game, { type: "SUBMIT_CLUE", clue }, now);
+  return {
+    ...session,
+    version: session.version + 1,
+    game: apply(sent, { type: "BEGIN_GUESS" }, now),
+  };
 }

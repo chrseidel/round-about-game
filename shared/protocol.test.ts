@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createGame } from "../game/rules.ts";
+import { apply, createGame } from "../game/rules.ts";
 import {
   PROTOCOL_VERSION,
   projectCaller,
@@ -113,4 +113,19 @@ test("public event excludes secrets", () => {
   for (const secret of ["tokenHash", "currentDraw", "deck"]) {
     assert.equal(JSON.stringify(event).includes(secret), false);
   }
+});
+
+test("snapshots carry server time", () => {
+  assert.equal(projectPublic(session(), 1234).serverTimeUtc, 1234);
+});
+
+test("drawn number never reaches Guessers or events", () => {
+  const value = session();
+  value.game = apply(value.game, { type: "DRAW" }, 1000);
+  const drawn = value.game.current!;
+  assert.equal(projectCaller(value, "tip", 2000).currentDraw, drawn);
+  assert.equal("currentDraw" in projectCaller(value, "guess", 2000), false);
+  const event = JSON.stringify(publicEvent(value, 2000));
+  assert.equal(event.includes("currentDraw"), false);
+  assert.equal(event.includes(`"number":${drawn}`), false);
 });

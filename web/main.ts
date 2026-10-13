@@ -1,5 +1,3 @@
-// Keep the existing browser game playable while the rule engine moves to game/.
-import "../app.js";
 import {
   SessionApi,
   normalizeCode,
@@ -8,9 +6,11 @@ import {
 } from "./session-api.ts";
 import { GameEvents } from "./events.ts";
 import { LOBBY_HTML, lobbyView, renderLobby } from "./lobby.ts";
-import type { PublicSnapshot, SessionCommand } from "../shared/protocol.ts";
+import { mergePrivate, secondsLeft } from "./turn.ts";
+import { renderPlay } from "./play.ts";
+import { clueError } from "../game/rules.ts";
+import type { CallerSnapshot, SessionCommand } from "../shared/protocol.ts";
 
-// Keep the local prototype usable until the multiplayer board is wired up.
 async function setupSessionEntry() {
   let endpoint: string | undefined;
   let eventsEndpoint: string | undefined;
@@ -26,7 +26,11 @@ async function setupSessionEntry() {
   } catch {
     /* no sandbox configured */
   }
-  if (!endpoint) return;
+  // Without a backend, keep the single-screen prototype playable.
+  if (!endpoint) {
+    await import("../app.js");
+    return;
+  }
 
   const api = new SessionApi({ gameApiUrl: endpoint });
   const entry = document.querySelector<HTMLDivElement>("#sessionEntry")!;
@@ -36,7 +40,7 @@ async function setupSessionEntry() {
     : "";
   const saved = squid && storedParticipant(squid);
   const nickname = localStorage.getItem("round-about:nickname") ?? "";
-  const showLobby = (
+  const showSession = (
     code: string,
     seat: { participantId: string; token: string },
   ) => {
@@ -44,15 +48,53 @@ async function setupSessionEntry() {
     const find = (id: string) => entry.querySelector<HTMLElement>(`#${id}`)!;
     find("inviteCode").textContent = code;
     const status = find("connectionStatus");
-    let latest: PublicSnapshot | null = null;
-    const render = () =>
-      latest && renderLobby(entry, lobbyView(latest, seat.participantId));
+    document.getElementById("newGameButton")!.hidden = true;
+    let latest: CallerSnapshot | null = null;
+    let offset = 0;
+    let draft = "";
+    let error = "";
+    const render = () => {
+      if (!latest) return;
+      if (latest.status === "lobby") {
+        renderLobby(entry, lobbyView(latest, seat.participantId));
+        return;
+      }
+      entry.hidden = true;
+      renderPlay(latest, seat.participantId, draft, error, {
+        draw: () => void send({ type: "DRAW" }),
+        send: () => {
+          error = clueError(draft, latest!.cards);
+          if (error) render();
+          else void send({ type: "SUBMIT_CLUE", clue: draft });
+        },
+        edit: (value) => {
+          draft = value;
+          error = value.trim() ? clueError(value, latest!.cards) : "";
+          render();
+        },
+      });
+      tick();
+    };
+    // Every snapshot, public or private, goes through mergePrivate so the
+    // Tipster's number survives public events for the same card.
+    const show = (snapshot: CallerSnapshot) => {
+      if (latest && snapshot.turn !== latest.turn) draft = "";
+      latest = mergePrivate(latest, snapshot);
+      offset = latest.serverTimeUtc - Date.now();
+      render();
+    };
+    const tick = () => {
+      const timer = document.getElementById("timerValue");
+      if (!timer || !latest) return;
+      const seconds = secondsLeft(latest.deadlineUtc, offset, Date.now());
+      timer.textContent = `0:${String(seconds).padStart(2, "0")}`;
+      timer.classList.toggle("urgent", seconds <= 5);
+    };
+    setInterval(tick, 200);
+    window.addEventListener("resize", render);
     const events = new GameEvents(
       { endpoint: eventsEndpoint!, squid: code, token: seat.token },
-      (snapshot) => {
-        latest = snapshot;
-        render();
-      },
+      show,
       () => api.snapshot(code, seat.token),
       (connected) => {
         status.textContent = connected ? "Connected" : "Reconnecting…";
@@ -60,30 +102,41 @@ async function setupSessionEntry() {
       () => {
         sessionStorage.removeItem(`round-about:${code}`);
         status.textContent = "This session has ended.";
+        entry.hidden = false;
       },
     );
-    const send = async (button: HTMLButtonElement, command: SessionCommand) => {
+    const receive = (snapshot: CallerSnapshot) => {
+      events.apply(snapshot);
+      show(snapshot);
+    };
+    const send = async (
+      command: SessionCommand,
+      button?: HTMLButtonElement,
+    ) => {
       if (!latest) return;
-      const error = find("commandError");
-      error.textContent = "";
-      button.disabled = true;
+      const lobbyError = find("commandError");
+      lobbyError.textContent = "";
+      error = "";
+      if (button) button.disabled = true;
       try {
-        events.apply(await api.command(code, seat.token, command, latest));
+        receive(await api.command(code, seat.token, command, latest));
       } catch (failure) {
-        error.textContent = (failure as Error).message;
-        const snapshot = (failure as { snapshot?: PublicSnapshot }).snapshot;
-        if (snapshot) events.apply(snapshot);
+        const message = (failure as Error).message;
+        if (latest.status === "lobby") lobbyError.textContent = message;
+        else error = message;
+        const snapshot = (failure as { snapshot?: CallerSnapshot }).snapshot;
+        if (snapshot) receive(snapshot);
       } finally {
-        button.disabled = false;
+        if (button) button.disabled = false;
         render();
       }
     };
     const claim = find("claimTipster") as HTMLButtonElement;
     const start = find("startGame") as HTMLButtonElement;
     claim.addEventListener("click", () =>
-      send(claim, { type: "CLAIM_TIPSTER" }),
+      send({ type: "CLAIM_TIPSTER" }, claim),
     );
-    start.addEventListener("click", () => send(start, { type: "START" }));
+    start.addEventListener("click", () => send({ type: "START" }, start));
     find("copyInvite").addEventListener("click", async () => {
       const link = `${location.origin}/s/${code}`;
       try {
@@ -102,7 +155,7 @@ async function setupSessionEntry() {
   if (saved) {
     try {
       await api.snapshot(squid, saved.token);
-      showLobby(squid, saved);
+      showSession(squid, saved);
       return;
     } catch {
       sessionStorage.removeItem(`round-about:${squid}`);
@@ -132,7 +185,7 @@ async function setupSessionEntry() {
         localStorage.setItem("round-about:nickname", name);
         rememberParticipant(grant.snapshot.squid, grant);
         history.replaceState(null, "", `/s/${grant.snapshot.squid}`);
-        showLobby(grant.snapshot.squid, grant);
+        showSession(grant.snapshot.squid, grant);
       } catch (error) {
         message.textContent = (error as Error).message;
       }
