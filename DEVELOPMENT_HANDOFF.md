@@ -1,87 +1,70 @@
 # Development handoff
 
-Read [TASKS.md](TASKS.md) for ordered work and acceptance criteria; [ARCHITECTURE.md](ARCHITECTURE.md) and [INFRASTRUCTURE.md](INFRASTRUCTURE.md) describe intended multiplayer behavior and deployment. **As of 2026-10-13: Tasks 1–16 are on `main`. **The game is live at `https://round-about.chreisel.net`** (Amplify app `round-about-game`, ID `d25cphjw1kxoxa`, `eu-central-1`); merging to `main` deploys it. The game is playable end to end in the sandbox with the local dev server, but there is no hosted deployment yet.** Do not treat a successful local build as completion of a task.
+**As of 2026-10-13:** all 16 tasks in [TASKS.md](TASKS.md) are complete. The game is live at `https://round-about.chreisel.net` (Amplify app `round-about-game`, ID `d25cphjw1kxoxa`, `eu-central-1`) and every merge to `main` deploys it. Working rules and the code map are in [AGENTS.md](AGENTS.md); AWS components and the pipeline in [INFRASTRUCTURE.md](INFRASTRUCTURE.md).
 
 ## Resume here
 
-1. Inspect `git status`, `git diff`, and recent commits before changing anything. Since Task 16 `main` is protected for everyone: work on a branch per task (`task-NN-slug`), push it, open a pull request, wait for the `check` run, and merge only with the owner's OK (merging deploys production). Keep documentation changes in their own commit.
-2. The sandbox `round-about-dev` was deployed on 2026-10-12 after the rename and verified with `scripts/check-events.ts`; the old `one-round-dev` sandbox and its log groups were deleted. `amplify/backend.ts` is the single source of truth: redeploy with `AWS_PROFILE=chreisel npx ampx sandbox --once --identifier round-about-dev` after backend changes, before testing against AWS. Amplify sandboxes delete the session table with the stack despite `RemovalPolicy.RETAIN`; confirm production keeps it in Task 16. On 2026-10-09 a deploy from an uncommitted tree left a throwaway `POST /dev-publish/{squid}` route live until 2026-10-12.
-3. **Next:** the owner's two-device check from docs/SMOKE.md; afterwards new work starts from TASKS.md or new requests, always via a branch and pull request **one at a time**. Workflow used for Task 9: agree a short design, write it to `docs/superpowers/specs/`, write a plan to `docs/superpowers/plans/`, build test-first, redeploy the sandbox, verify with scripts plus a three-tab browser test, then one feature commit and a separate docs commit. Push to `main` only when asked; CI must stay green.
-4. **Open items for the owner, not code:** raise the Lambda concurrent-executions quota (see Task 9 notes); branch protection is accepted as a gap until Task 16; optionally rename the local folder `one-round` (this detaches Claude's saved project memory, which is keyed by folder path).
+1. Inspect `git status`, `git log` and open pull requests before changing anything.
+2. **Next:** no task is open. New work starts from a request, one branch and pull request at a time.
+3. **Workflow that worked for Tasks 9–16:** agree a short design, write it to `docs/superpowers/specs/`, write a plan to `docs/superpowers/plans/`, build test-first, redeploy the sandbox, verify with `npm run smoke:dev` plus a three-tab browser test (a phone-sized tab for UI changes), then one feature commit and a separate docs commit on the branch. Push and open the pull request when the owner asks; merge only with the owner's OK.
+4. After a merge that changes the backend, run the production part of [docs/SMOKE.md](docs/SMOKE.md).
 
-## Environment and deployment state
+## Open items for the owner (not code)
 
-- Use `AWS_PROFILE=chreisel` in `eu-central-1`. `aws sts get-caller-identity --profile chreisel` succeeded for account `681249697421`. Region was CDK-bootstrapped. Development sandbox deployed using `AWS_PROFILE=chreisel npx ampx sandbox --once --identifier round-about-dev`; this created AWS resources and wrote ignored `amplify_outputs.json`. **Never commit** `amplify_outputs.json`, `.amplify/`, `.env*`, or participant tokens. Local dev: `npm ci`, `npm run dev`, `npm run check`.
-- Sandbox is a backend proof, **not a hosted working game**: host/join, live updates, Tipster claim and start work; no turns yet. After each deploy run `AWS_PROFILE=chreisel npm run smoke:dev` (all seven sandbox checks, see [docs/SMOKE.md](docs/SMOKE.md)). New stream triggers need about a minute after a deploy before they deliver. AppSync spike in `scripts/check-events.ts` verified member subscribe succeeds, outsider/wildcard subscribe fails, browser publish fails, and backend publish delivered an event. Since Task 8 it triggers delivery with a real participant join and checks the event's version and that it carries no secrets. Run it after deploying: `npx tsx scripts/check-events.ts <gameApiUrl> <gameEventsUrl>` (values from `amplify_outputs.json`). `.claude/launch.json` starts the dev server for the desktop app's browser pane.
-- Use Node `v22.23.3` (nvm default `22`); older 22.x releases trigger Amplify engine warnings. A shell opened before the nvm default changed may still use v22.2.0: check `node -v` and prepend `~/.nvm/versions/node/v22.23.3/bin` to `PATH` if needed. The Amplify CLI sometimes prints an unsettled top-level-await warning on exit; it is harmless. Do not assume previous npm audit output (including transitive findings) is resolved.
-- GitHub: private repository `chrseidel/round-about-game`, `origin` is `git@github.com:chrseidel/round-about-game.git` (SSH, authenticated as `chrseidel`). The project was renamed from "One Round" to "Round About" on 2026-10-12; the local folder may still be named `one-round`. CI runs on GitHub; branch protection is unavailable on the private Free plan and was accepted as a gap for now (see Task 4).
+- **Lambda concurrency** is still 10 in `eu-central-1`; the support case for 1000 is open. Until then heavier use can return 503 "Service Unavailable"; `LambdaThrottlesAlarm` shows it.
+- Optional: rename the local folder `one-round` (this detaches Claude's saved project memory, which is keyed by folder path).
+- Optional: delete the old `/aws/lambda/amplify-roundabout-…` sandbox log groups (no new logs since 14-day retention moved logs to new groups).
 
-## Real-time transport notes (Task 8)
+## Environment
 
-- `web/main.ts` wires the session: lobby overlay (`web/lobby.ts`) until the start, then header, circle and turn panel from server state (`web/play.ts`, `web/turn.ts`, `web/board.ts`). The single-screen prototype `app.js` only runs when no backend is configured.
-- **Publishing (2026-10-12):** the `pendingEvent`/`publishPending()` retry was replaced by a DynamoDB Stream (`NEW_IMAGE`) on the session table feeding `amplify/functions/event-publisher`. It publishes the public projection of every committed write; failures are reported per record so Lambda retries (5 attempts, 10-minute max age), then stream metadata only goes to the `EventPublishFailures` SQS queue. Only the publisher may `appsync:EventPublish`; the game API no longer publishes. Deployed to the sandbox and verified with `scripts/check-events.ts`. A brand-new stream trigger needs about a minute before it delivers. The retry path is unit-tested only. No alarm on the failure queue yet (Task 15).
-- **Browser (2026-10-12):** `web/events.ts` stops reconnecting only when a rejected subscription is confirmed by a 401/404 from `GET /sessions/{squid}`; other rejections keep retrying. `close()` exists but nothing calls it yet, because there is no leave/new-session action until Task 14. The lobby shows when live updates are not configured. Covered by `web/events.test.ts` (fake WebSocket) and the 2026-10-12 browser test; the "session ended" path is unit-tested only.
-- The game API's CORS list currently includes only local development origins. Amplify Hosting production origin, SPA rewrite for `/s/{squid}`, and generated frontend endpoint configuration are Task 16 work. `vite.config.ts` serves ignored `amplify_outputs.json` only in the local dev server; production build must get branch-specific outputs when hosting is implemented.
-- `shared/protocol.ts` includes a pending-reveal public payload; its scheduled display is **UX timing**, not secrecy. Never send `currentDraw` or future deck on public AppSync events. Browser-selected gap must not reset the server deadline. The fixed Tipster is implemented (Task 9); two-click shared Guesser selection is documented in `ARCHITECTURE.md` and comes in Task 12.
+- Use `AWS_PROFILE=chreisel` in `eu-central-1` (CDK-bootstrapped). Sandbox: `AWS_PROFILE=chreisel npx ampx sandbox --once --identifier round-about-dev`; it writes the ignored `amplify_outputs.json` that `npm run dev` serves. `.claude/launch.json` starts the dev server for the desktop app's browser pane.
+- Node `v22.23.3` (nvm default `22`); older 22.x releases trigger Amplify engine warnings. If `node -v` shows an older version, prepend `~/.nvm/versions/node/v22.23.3/bin` to `PATH`. The Amplify CLI sometimes prints an unsettled top-level-await warning on exit; it is harmless.
+- GitHub: public repository `chrseidel/round-about-game`, `origin` `git@github.com:chrseidel/round-about-game.git` (SSH as `chrseidel`). The project was called "One Round" until 2026-10-12.
 
-## Lobby and commands notes (Task 9)
+## Known gaps and deferred minors
 
-- `POST /sessions/{squid}/commands` is the command endpoint for later tasks: add a case to `applyCommand` in `amplify/functions/game-api/command.ts` and a pure rule in `session.ts`. The handler retries a conditional write up to 3 times, re-checking rules on the reloaded session.
-- That retry path has **not** run against AWS: DynamoDB recorded no conditional-check failures in any test, because requests were serialized by Lambda/DynamoDB latency. It has no automated test either (the DynamoDB client in `handler.ts` is not injectable). The conditional write alone guarantees one Tipster.
-- **Lambda concurrency limit is 10** for the whole account in `eu-central-1` (new-account default). Five parallel test sessions caused one throttled request, which the API answered with 503 "Service Unavailable". A real game start with many players plus authorizer and publisher invocations could hit it. Request an increase via Service Quotas ("Concurrent executions") before production; this is an account change for the owner to make.
-- Deferred minors: the lobby renders only after the WebSocket subscribes (~0.5 s), though join/reload already return a snapshot; without an events endpoint it stays empty.
+- No rate limiting of creates/joins (only the 12-player cap).
+- Alarms have no notification target.
+- A deliberately failing Amplify build has not been triggered; `amplify.yml` runs `npm run check` before deploying, so it should stop the deploy.
+- The command handler's retry after a conditional-write conflict has never run against AWS (requests were always serialized) and has no automated test, because the DynamoDB client in `handler.ts` is not injectable. The conditional write alone keeps state consistent.
+- Replacing a session: if the old session's write conflicts, the API answers 409 and the new session stays unused until its TTL (rare; a transaction would avoid it).
+- An Overtime loss (or a grace discard at 0 lives) leaves `lives` at -1 in the reducer; the UI clamps the display.
+- The locking player sees the reveal ~130 ms before the others, because each browser's clock offset includes its own one-way delay; a round-trip-based offset would tighten this.
+- The lobby renders only after the WebSocket subscribes (~0.5 s), although join/reload already return a snapshot.
+- The `web/events.ts` "session ended" path (stop reconnecting after a confirmed 401/404) is unit-tested only.
 
-## Deadline notes (Task 10)
+## Lessons learned
 
-- `shared/deadlines.ts` `reconcile(session, now)` applies due timeouts. The game API runs it on reads (not saved), before commands and before joins. New commands in Tasks 11–14 get this automatically through `applyCommand(session, participantId, command, now)`.
-- `deadline-scheduler` (stream consumer) enqueues `{ squid, turn, phase, deadline }` with a delay for every saved running deadline; `timeout` applies it if it still matches, re-queues early ones and ignores stale ones. Delivery lands about 1–2 s after a deadline.
-- DynamoDB writes go through `amplify/functions/shared/db.ts` `documentClient()`, which drops `undefined` fields. Game results contain them (no guessed gap after an Overtime timeout); the default client throws a bare `Error`. Use it for any new writer.
-- **Lockfile trap:** `npm install <package>` drops nested `@opentelemetry/core@2.0.0` entries from Amplify's bundled constructs, after which `npm ci` and CI fail. After any install run `npm install --package-lock-only` and confirm `npm ci --dry-run` reports no errors.
-- Deferred minor: an Overtime loss (or a grace discard at 0 lives) leaves `game.lives` at -1, a reducer behaviour that will show once the board displays lives.
-- The Lambda concurrency limit is still 10; this task added two more functions that share it.
+**Backend**
 
-## Turn UI notes (Task 11)
+- `amplify/backend.ts` is the only record of what exists. On 2026-10-09 a deploy from an uncommitted tree left a throwaway route live for three days; deploy only from committed code and redeploy after every backend change.
+- Amplify sandboxes delete the session table with the stack despite `RemovalPolicy.RETAIN`; the production stack keeps it (`DeletionPolicy: Retain` confirmed).
+- New stream triggers need time before they deliver: about a minute after a sandbox deploy, about 3.5 minutes after the first production deploy.
+- New commands: add a case to `applyCommand` in `amplify/functions/game-api/command.ts` and a pure function in `session.ts`. `applyCommand` reconciles due deadlines first and refuses replaced sessions; every write goes through `rememberCommand` (last 20 command IDs, so retries are answered without reapplying).
+- `LOCK_GAP` is the only strict command: selected gap and `expectedVersion` must match the stored state, else 409 `STALE_VERSION`. `CHOOSE_GAP` is last-click-wins. A lock sets `revealAtUtc` (now + 2 s) and `lockedBy`; `NEXT_TURN` and `DRAW` from a result refuse to run before it.
+- `finalStatus(game)` decides win/loss at each result; a finished session accepts no further turns.
+- Write to DynamoDB through `documentClient()` from `amplify/functions/shared/db.ts`: results can contain `undefined` fields, which the default client rejects.
+- **Lockfile trap:** `npm install <package>` drops nested `@opentelemetry/core@2.0.0` entries from Amplify's bundled constructs, after which `npm ci` (CI and Amplify) fails. Run `npm install --package-lock-only` and confirm `npm ci --dry-run`.
 
-- Every snapshot in the browser goes through `mergePrivate(latest, next)` (`web/turn.ts`): it ignores older versions and keeps the Tipster's `currentDraw` across public events for the same card. The public event for a draw can arrive before the Tipster's own HTTP response with the same version, so command responses are passed through it too, not only through `GameEvents.apply`.
-- Countdowns use `serverTimeUtc` from each snapshot (`secondsLeft`). The typed word lives only in page memory; the field is rebuilt only when the card changes, so live updates keep focus and draft.
-- Gaps are clickable only for Guessers in the guess phase (`gapCommand` in `web/turn.ts`). After a discarded card the game waits on the result until Task 14 adds `NEXT_TURN`.
-- Browser tests with batched steps: pauses between batches eat into the 20-second clue time; put time-sensitive steps (draw, reload, read timer) in one batch.
+**Browser**
 
-## Gap selection notes (Task 12)
+- Every snapshot, including command responses, goes through `mergePrivate(latest, next)` in `web/turn.ts`: it drops older versions and keeps the Tipster's `currentDraw` across public events. A draw's public event can arrive before the Tipster's own response with the same version.
+- Decide anything status-related on `revealed(latest, serverNow)`, not on the raw snapshot: no event arrives at the reveal moment, so the raw snapshot keeps the pre-reveal status (this once broke the New game button).
+- Countdowns use `serverTimeUtc` from each snapshot (`secondsLeft`). The typed clue lives only in page memory; the field is rebuilt only when the card changes, so live updates keep focus and draft.
+- `game.css` hides disabled gaps except the selected or locked one (otherwise the Tipster cannot see the team's hourglass). Gaps have an invisible 44 px tap area for phones.
+- The page reads the session code with `codeFromPath`, which tolerates `/s/<code>/`.
 
-- `LOCK_GAP` is the only strict command: it needs the selected index and `expectedVersion` equal to the stored version, else 409 `STALE_VERSION` "The selection changed. Tap again to lock in." `CHOOSE_GAP` is last-click-wins.
-- Sessions store `recentCommands` (last 20 command IDs); the handler answers a repeated ID with the current state before applying anything. Every write goes through `rememberCommand`.
-- Since Task 13 a lock answers with the pre-reveal view; the result arrives in `pendingReveal` and is shown at `revealAtUtc`.
+**Testing**
 
-## Shared reveal notes (Task 13)
+- In browser tests with batched steps, pauses between batches eat into the 20-second clue time; keep time-sensitive steps (draw, reload, read timer) in one batch.
+- `.superpowers/` is git-ignored scratch for test helpers and plan ledgers.
 
-- `lockGap` sets `revealAtUtc = now + REVEAL_DELAY_MS` (2000) and `lockedBy`. Timeouts reveal immediately. The projection hides the result until the target; `revealed(snapshot, serverNow)` in `web/turn.ts` switches the browser at the target, and `main.ts` schedules one re-render for it.
-- `NEXT_TURN` (and `DRAW` from a result) refuses to run before `revealAtUtc` and resets `revealAtUtc` and `lockedBy` (Task 14).
-- `game.css`: disabled gaps are invisible (`opacity: 0`) except the selected or locked one; without that exception the Tipster could not see the team's hourglass (bug from Task 12, fixed here).
-- Deferred minor: the locking player reveals ~130 ms before the others because each browser's clock offset includes its own one-way network delay; a round-trip-based offset would tighten this.
+## Recreating production
 
-## Progression notes (Task 14)
+Done in this order on 2026-10-13; keep as the reference if the app ever has to be rebuilt.
 
-- `finalStatus(game)` in `shared/deadlines.ts` ends the game at each result (lock or timeout); the projection shows the new status with the result at the reveal. A won or lost session accepts no further turns.
-- In the browser, decide anything status-related on `revealed(latest, serverNow)`, not on `latest`: after a reveal the raw snapshot keeps the pre-reveal status because no new event arrives at the reveal moment (this caused a bug in the New game button, fixed with `confirmsNewSession`).
-- New session: `POST /sessions` with `{ replaces }` and the host's token; the old session gets `nextSquid`, refuses commands and expires after 10 minutes. If the old session's write conflicts, the API answers 409 and the new session stays unused until its TTL (rare; a transaction would avoid it).
-- `.superpowers/` is git-ignored scratch; the Task 14 browser test used a helper there to read the correct gap and set the pile.
-
-## Verification and alarms notes (Task 15)
-
-- Five alarms, no notifications (decision 2026-10-13): three failure queues, `LambdaThrottlesAlarm` (sum over the five game functions) and `GameApiServerErrorsAlarm` (HTTP API 5xx). `scripts/check-alarm.ts` proves one fires.
-- [docs/SMOKE.md](docs/SMOKE.md) holds the development and production smoke procedures; the production part lists only scripts that do not write to the table.
-- Phone layout verified at 375 × 812 in every phase; gaps got an invisible 44 px tap area.
-- After `npm install <package>`: `npm install --package-lock-only` and `npm ci --dry-run` (needed again for `@aws-sdk/client-cloudwatch`).
-
-## Production launch (Task 16, done 2026-10-13)
-
-Launched before the Lambda quota increase was approved (support case for 1000 concurrent executions still open on 2026-10-13; the limit is 10 until then). The steps below were done in this order; keep them as the reference for recreating production.
-
-1. **Owner:** merge the Task 16 pull request (after its `check` run passed).
-2. **Owner, AWS console** (`eu-central-1`): Amplify → Create new app → GitHub → authorize → repository `chrseidel/round-about-game`, branch `main` → app name `round-about` → let Amplify create a new service role → confirm the detected `amplify.yml` → Save and deploy. The first build deploys the production backend (separate stack) and the frontend.
-3. **Assistant, AWS CLI, each confirmed:** rewrite rule (placed before Amplify's default `/<*>` 404-200 fallback, which otherwise redirects `/s/<code>` to `/s/<code>/` and then answers 404) `</^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>` → `/index.html` (200); PR previews off; domain association `chreisel.net` with prefix `round-about` → `main` (certificate and Route 53 records created by Amplify).
-4. **Verify:** the build log shows `npm run check`; `https://round-about.chreisel.net` and a direct `/s/<code>` link load; the API's CORS answers the production origin and not localhost; the production part of [docs/SMOKE.md](docs/SMOKE.md) passes, including the owner's two-device check.
-- Facts from the launch: the console-created service role is named `AmplifySSRLoggingRole-…` but carries `AmplifyBackendDeployFullAccess`. The first build after connecting the app used the console's default build spec (it built `main` from before the merge); the merge build used `amplify.yml`. The domain created one `round-about` CNAME in the `chreisel.net` zone; the certificate is Amazon-issued for `*.chreisel.net`.
-- The page reads the session code with `codeFromPath`, which tolerates a trailing slash in `/s/<code>/`.
-
+1. **AWS console** (`eu-central-1`): Amplify → Create new app → GitHub → repository `chrseidel/round-about-game`, branch `main` → let Amplify create a new service role (it carries `AmplifyBackendDeployFullAccess`, although named `AmplifySSRLoggingRole-…`) → confirm the detected `amplify.yml` → Save and deploy. A build triggered before `amplify.yml` is on `main` uses the console's default spec.
+2. **Rewrite rule**, placed before Amplify's default `/<*>` 404-200 rule (otherwise `/s/<code>` is redirected to `/s/<code>/` and answers 404): source `</^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>`, target `/index.html`, type 200. PR previews off.
+3. **Domain:** association `chreisel.net`, prefix `round-about` → branch `main`. Amplify issues the certificate and adds one CNAME to the Route 53 zone.
+4. **Production origins** are fixed in `amplify/origins.ts`; a new app ID changes the `amplifyapp.com` origin automatically, a new domain needs a code change.
+5. **Verify:** the build log shows `npm run check`; the site and a direct `/s/<code>` link load; CORS answers the production origin and not localhost; the production part of [docs/SMOKE.md](docs/SMOKE.md) passes, including the two-device check.
