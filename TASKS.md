@@ -2,7 +2,7 @@
 
 Work through tasks in order; commit each after verification. Design references: [ARCHITECTURE.md](ARCHITECTURE.md) and [INFRASTRUCTURE.md](INFRASTRUCTURE.md).
 
-**Current state:** Tasks 1–11 have separate commits. Vite app and tests work locally; an Amplify sandbox runs in `eu-central-1` using `AWS_PROFILE=chreisel`. Guest host/join and per-room AppSync authorization were exercised in the sandbox. This is **not a deployed playable multiplayer game**. Tasks 12–16 are pending. The GitHub repository is `chrseidel/round-about-game` (private), `origin` is `git@github.com:chrseidel/round-about-game.git`, and the Check workflow runs on pushes and PRs to `main`. Do not commit `amplify_outputs.json` or `.amplify/`.
+**Current state:** Tasks 1–12 have separate commits. Vite app and tests work locally; an Amplify sandbox runs in `eu-central-1` using `AWS_PROFILE=chreisel`. Guest host/join and per-room AppSync authorization were exercised in the sandbox. This is **not a deployed playable multiplayer game**. Tasks 13–16 are pending. The GitHub repository is `chrseidel/round-about-game` (private), `origin` is `git@github.com:chrseidel/round-about-game.git`, and the Check workflow runs on pushes and PRs to `main`. Do not commit `amplify_outputs.json` or `.amplify/`.
 
 ## 1. Establish maintainable project tooling
 
@@ -116,7 +116,7 @@ Work through tasks in order; commit each after verification. Design references: 
 
 ## 12. Implement shared two-click gap selection
 
-**Status:** Pending.
+**Status:** Completed; `cad7fcf`. Design: [docs/superpowers/specs/2026-10-13-task-12-gap-selection-design.md](docs/superpowers/specs/2026-10-13-task-12-gap-selection-design.md). Verified 2026-10-13 with `scripts/check-gaps.ts` and a three-tab browser test including a real stale-lock race. Results show immediately until Task 13 adds the shared reveal.
 
 **Context:** Any Guesser may select; the second click on *current* shared gap by any Guesser locks for whole team. There is no designated Guesser or separate Reveal button.
 
