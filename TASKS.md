@@ -2,7 +2,7 @@
 
 Work through tasks in order; commit each after verification. Design references: [ARCHITECTURE.md](ARCHITECTURE.md) and [INFRASTRUCTURE.md](INFRASTRUCTURE.md).
 
-**Current state:** Tasks 1–14 have separate commits. Vite app and tests work locally; an Amplify sandbox runs in `eu-central-1` using `AWS_PROFILE=chreisel`. Guest host/join and per-room AppSync authorization were exercised in the sandbox. This is **not a deployed playable multiplayer game**. Tasks 15–16 are pending. The GitHub repository is `chrseidel/round-about-game` (private), `origin` is `git@github.com:chrseidel/round-about-game.git`, and the Check workflow runs on pushes and PRs to `main`. Do not commit `amplify_outputs.json` or `.amplify/`.
+**Current state:** Tasks 1–15 have separate commits. Vite app and tests work locally; an Amplify sandbox runs in `eu-central-1` using `AWS_PROFILE=chreisel`. Guest host/join and per-room AppSync authorization were exercised in the sandbox. This is **not a deployed playable multiplayer game**. Task 16 is pending. The GitHub repository is `chrseidel/round-about-game` (private), `origin` is `git@github.com:chrseidel/round-about-game.git`, and the Check workflow runs on pushes and PRs to `main`. Do not commit `amplify_outputs.json` or `.amplify/`.
 
 ## 1. Establish maintainable project tooling
 
@@ -146,7 +146,7 @@ Work through tasks in order; commit each after verification. Design references: 
 
 ## 15. Verify end-to-end in isolated development stack
 
-**Status:** Pending.
+**Status:** Completed; `fc72b53`. Design: [docs/superpowers/specs/2026-10-13-task-15-e2e-and-alarms-design.md](docs/superpowers/specs/2026-10-13-task-15-e2e-and-alarms-design.md). Verified 2026-10-13: `npm run smoke:dev` (all seven sandbox checks) green; `scripts/check-alarm.ts` fired `TimeoutFailuresAlarm` after 153 s and cleared it; a full browser game (Tipster, two Guessers, one phone-sized tab, a late joiner) played to "Game over" and restarted with a new session. Production smoke procedure: [docs/SMOKE.md](docs/SMOKE.md).
 
 **Context:** Unit tests cannot establish real-time authorization, shared timing or reconnect behavior across devices. Prove full game before production deployment.
 
