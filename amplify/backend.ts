@@ -22,13 +22,27 @@ import { CfnFunction, StartingPosition } from "aws-cdk-lib/aws-lambda";
 import {
   DynamoEventSource,
   SqsDlq,
+  SqsEventSource,
 } from "aws-cdk-lib/aws-lambda-event-sources";
+import {
+  Alarm,
+  ComparisonOperator,
+  TreatMissingData,
+} from "aws-cdk-lib/aws-cloudwatch";
 import { Queue } from "aws-cdk-lib/aws-sqs";
 import { gameApi } from "./functions/game-api/resource.js";
 import { eventAuth } from "./functions/event-auth/resource.js";
 import { eventPublisher } from "./functions/event-publisher/resource.js";
+import { deadlineScheduler } from "./functions/deadline-scheduler/resource.js";
+import { timeout } from "./functions/timeout/resource.js";
 
-const backend = defineBackend({ gameApi, eventAuth, eventPublisher });
+const backend = defineBackend({
+  gameApi,
+  eventAuth,
+  eventPublisher,
+  deadlineScheduler,
+  timeout,
+});
 const stack = backend.gameApi.resources.lambda.stack;
 
 const sessions = new Table(stack, "Sessions", {
@@ -121,6 +135,10 @@ const events = new CfnApi(stack, "GameEvents", {
 });
 // Every committed session write is published from the table stream, so a
 // failed publish is retried by Lambda instead of depending on a later request.
+// Failure records hold stream metadata only, never session contents.
+const eventPublishFailures = new Queue(stack, "EventPublishFailures", {
+  retentionPeriod: Duration.days(4),
+});
 const publisher = backend.eventPublisher.resources.lambda;
 publisher.addToRolePolicy(
   new PolicyStatement({
@@ -139,12 +157,7 @@ publisher.addEventSource(
     retryAttempts: 5,
     maxRecordAge: Duration.minutes(10),
     reportBatchItemFailures: true,
-    // Failure records hold stream metadata only, never session contents.
-    onFailure: new SqsDlq(
-      new Queue(stack, "EventPublishFailures", {
-        retentionPeriod: Duration.days(4),
-      }),
-    ),
+    onFailure: new SqsDlq(eventPublishFailures),
   }),
 );
 backend.eventAuth.resources.lambda.addPermission("AppSyncAuthorize", {
@@ -155,6 +168,66 @@ new CfnChannelNamespace(stack, "GameNamespace", {
   apiId: events.attrApiId,
   name: "games",
 });
+
+// Deadlines: the stream schedules a delayed message per running deadline;
+// the timeout Lambda applies it if it still matches the saved session.
+const timeoutFailures = new Queue(stack, "TimeoutFailures", {
+  retentionPeriod: Duration.days(4),
+});
+const timeoutQueue = new Queue(stack, "TimeoutQueue", {
+  visibilityTimeout: Duration.seconds(60),
+  retentionPeriod: Duration.days(4),
+  deadLetterQueue: { queue: timeoutFailures, maxReceiveCount: 5 },
+});
+const deadlineScheduleFailures = new Queue(stack, "DeadlineScheduleFailures", {
+  retentionPeriod: Duration.days(4),
+});
+const scheduler = backend.deadlineScheduler.resources.lambda;
+const timeoutFunction = backend.timeout.resources.lambda;
+timeoutQueue.grantSendMessages(scheduler);
+timeoutQueue.grantSendMessages(timeoutFunction);
+sessions.grantReadWriteData(timeoutFunction);
+for (const fn of [scheduler, timeoutFunction])
+  (fn.node.defaultChild as CfnFunction).addPropertyOverride(
+    "Environment.Variables.TIMEOUT_QUEUE_URL",
+    timeoutQueue.queueUrl,
+  );
+(timeoutFunction.node.defaultChild as CfnFunction).addPropertyOverride(
+  "Environment.Variables.SESSION_TABLE",
+  sessions.tableName,
+);
+scheduler.addEventSource(
+  new DynamoEventSource(sessions, {
+    startingPosition: StartingPosition.LATEST,
+    batchSize: 10,
+    retryAttempts: 5,
+    maxRecordAge: Duration.minutes(10),
+    reportBatchItemFailures: true,
+    onFailure: new SqsDlq(deadlineScheduleFailures),
+  }),
+);
+timeoutFunction.addEventSource(
+  new SqsEventSource(timeoutQueue, {
+    batchSize: 10,
+    reportBatchItemFailures: true,
+  }),
+);
+
+// Anything in a failure queue means a timeout or broadcast was lost.
+for (const [id, queue] of [
+  ["TimeoutFailuresAlarm", timeoutFailures],
+  ["DeadlineScheduleFailuresAlarm", deadlineScheduleFailures],
+  ["EventPublishFailuresAlarm", eventPublishFailures],
+] as const)
+  new Alarm(stack, id, {
+    metric: queue.metricApproximateNumberOfMessagesVisible({
+      period: Duration.seconds(60),
+    }),
+    threshold: 1,
+    evaluationPeriods: 1,
+    comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+    treatMissingData: TreatMissingData.NOT_BREACHING,
+  });
 
 backend.addOutput({
   custom: {

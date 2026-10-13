@@ -2,7 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { PROTOCOL_VERSION } from "../../../shared/protocol.ts";
 import { applyCommand, parseCommandRequest } from "./command.ts";
-import { CommandError, newSession } from "./session.ts";
+import { apply } from "../../../game/rules.ts";
+import {
+  claimTipster,
+  CommandError,
+  joinSession,
+  newSession,
+  startGame,
+} from "./session.ts";
 
 const valid = {
   protocolVersion: PROTOCOL_VERSION,
@@ -38,11 +45,33 @@ test("parse accepts a valid claim", () => {
 test("apply dispatches and rejects later commands", () => {
   const { session, participantId } = newSession("Alice", 10_000);
   assert.equal(
-    applyCommand(session, participantId, { type: "CLAIM_TIPSTER" }).tipsterId,
+    applyCommand(session, participantId, { type: "CLAIM_TIPSTER" }, 10_000)
+      .tipsterId,
     participantId,
   );
   assert.throws(
-    () => applyCommand(session, participantId, { type: "DRAW" }),
+    () => applyCommand(session, participantId, { type: "DRAW" }, 10_000),
     /Not available yet\./,
   );
+});
+
+test("command after an overdue deadline is judged on the expired state", () => {
+  const hosted = newSession("Alice", 0);
+  const joined = joinSession(hosted.session, "Bob", 0).session;
+  const started = startGame(
+    claimTipster(joined, hosted.participantId),
+    hosted.participantId,
+  );
+  const drawing = {
+    ...started,
+    game: apply(started.game, { type: "DRAW" }, 0),
+  };
+  const next = applyCommand(
+    drawing,
+    hosted.participantId,
+    { type: "START" },
+    20_000,
+  );
+  assert.equal(next.game.phase, "grace");
+  assert.equal(next.version, drawing.version + 1);
 });

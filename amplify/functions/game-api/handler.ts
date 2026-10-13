@@ -2,13 +2,10 @@ import type {
   APIGatewayProxyHandlerV2,
   APIGatewayProxyStructuredResultV2,
 } from "aws-lambda";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import {
-  DynamoDBDocumentClient,
-  GetCommand,
-  PutCommand,
-} from "@aws-sdk/lib-dynamodb";
+import { GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { documentClient } from "../shared/db.ts";
 import { projectCaller, type Session } from "../../../shared/protocol.ts";
+import { reconcile } from "../../../shared/deadlines.ts";
 import { applyCommand, parseCommandRequest } from "./command.ts";
 import {
   authenticate,
@@ -19,7 +16,7 @@ import {
   normalizeSquid,
 } from "./session.ts";
 
-const db = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+const db = documentClient();
 const table = process.env.SESSION_TABLE;
 
 function response(
@@ -89,13 +86,15 @@ async function runCommand(
         session,
         participantId,
         parseCommandRequest(input(event)).command,
+        Date.now(),
       );
     } catch (error) {
       if (!(error instanceof CommandError)) throw error;
+      const now = Date.now();
       return response(ERROR_STATUS[error.code], {
         code: error.code,
         message: error.message,
-        snapshot: projectCaller(session, participantId, Date.now()),
+        snapshot: projectCaller(reconcile(session, now), participantId, now),
       });
     }
     if (next === session)
@@ -123,10 +122,11 @@ async function runCommand(
       });
     session = reloaded;
   }
+  const now = Date.now();
   return response(409, {
     code: "STALE_VERSION",
     message: "Session changed. Retry.",
-    snapshot: projectCaller(session, participantId, Date.now()),
+    snapshot: projectCaller(reconcile(session, now), participantId, now),
   });
 }
 
@@ -192,7 +192,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
         participantId,
         credential,
         snapshot,
-      } = joinSession(session, name, Date.now());
+      } = joinSession(reconcile(session, Date.now()), name, Date.now());
       try {
         await db.send(
           new PutCommand({
@@ -222,7 +222,12 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
           code: "UNAUTHORIZED",
           message: "Join this session first.",
         });
-      return response(200, projectCaller(session, participantId, Date.now()));
+      // Reads show due timeouts without saving them.
+      const now = Date.now();
+      return response(
+        200,
+        projectCaller(reconcile(session, now), participantId, now),
+      );
     }
     return response(404, { code: "NOT_FOUND", message: "Not found." });
   } catch (error) {
