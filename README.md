@@ -10,7 +10,7 @@ A cooperative word-and-number game for small groups, each player on their own de
 - A wrong guess still places the card in its correct gap but costs one of three lives. A missing clue discards the card, costs a life and puts one card back on the pile.
 - Place all 12 pile cards to win. Losing the third life starts **Overtime**: one more miss or timeout ends the game.
 
-The start screen's "How to play" button explains all of this with pictures of the Tipster's and a Guesser's view.
+The "How to play" button on the start screen and in the lobby explains all of this with pictures of the Tipster's and a Guesser's view.
 
 No accounts: the host shares an invite link (`/s/<code>`), players join with a nickname, and the host can start a new game with a fresh link at any time.
 
