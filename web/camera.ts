@@ -54,18 +54,6 @@ export function project(
   return [camera.cx + rx * camera.s, camera.cy + ry * camera.s * camera.tilt];
 }
 
-/** The linear part of the projection, as a CSS matrix(a, b, c, d). */
-export function cameraMatrix(camera: Camera): [number, number, number, number] {
-  const a = (camera.angle * Math.PI) / 180;
-  const { s, tilt } = camera;
-  return [
-    Math.cos(a) * s,
-    Math.sin(a) * s * tilt,
-    -Math.sin(a) * s,
-    Math.cos(a) * s * tilt,
-  ];
-}
-
 export function lerpCamera(from: Camera, to: Camera, t: number): Camera {
   const mix = (a: number, b: number) => a + (b - a) * t;
   return {
@@ -162,7 +150,7 @@ export function fitLobbyCamera(region: Region): Camera {
 
 /** Estimated sign boxes in px (a two-line word, shadow included). */
 export const FULL_SIGN = { width: 128, height: 76 };
-export const COMPACT_SIGN = { width: 78, height: 56 };
+export const COMPACT_SIGN = { width: 88, height: 56 };
 
 export type GameFit = {
   camera: Camera;

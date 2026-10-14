@@ -356,3 +356,10 @@ test("island shows the secret number to the Tipster only", () => {
   });
   assert.equal(islandView(discarded, "alice").kind, "logo");
 });
+
+test("no exit taps once the host has started a new game", () => {
+  assert.equal(
+    gapCommand(guessing({ nextSquid: "ABCDEFGHJKMN" }), "alice", 2),
+    null,
+  );
+});

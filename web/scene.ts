@@ -85,15 +85,37 @@ let moveStart: number | null = null;
 let moveDone: (() => void) | null = null;
 let drive: { spec: RevealDrive; start: number } | null = null;
 let frameRequested = false;
-let gameKey = "";
+/** The circle's cards: exits and signs are rebuilt only when these change. */
+let structureKey = "";
+/** Layout last measured by checkSigns. */
+let checkedKey = "";
+/** Camera and state the ground was last drawn for. */
+let groundKey = "";
 let carKey = "";
 
 const $ = (id: string) => document.getElementById(id)!;
 
+/** Forgets the last game: board, reveal drive, camera move and sign fit. */
+function resetGame() {
+  board = null;
+  drive = null;
+  moveStart = null;
+  moveDone = null;
+  structureKey = "";
+  checkedKey = "";
+  fit = { count: -1, width: -1, compact: false, minHeight: 0, tries: 0 };
+  const boardElement = document.getElementById("board");
+  if (boardElement) boardElement.style.minHeight = "";
+  $("sceneExits").replaceChildren();
+  $("sceneSigns").replaceChildren();
+}
+
 /** The isometric look at the entry screen or lobby. */
 export function showEntry() {
+  resetGame();
   mode = "entry";
   progress = 0;
+  carKey = "";
   setCars([
     { id: "a", name: "", tipster: false, you: false },
     { id: "b", name: "", tipster: true, you: false },
@@ -102,7 +124,14 @@ export function showEntry() {
   update();
 }
 
+/** The lobby; also the first view of any new session (pass no players yet). */
 export function showLobby(players: SceneCar[]) {
+  if (mode !== "lobby") {
+    resetGame();
+    // The entry's placeholder cars must not count as known players.
+    carKey = "";
+    cars = [];
+  }
   mode = "lobby";
   progress = 0;
   setCars(players);
@@ -134,7 +163,6 @@ export function showGame(
         ? null
         : { spec: next.drive, start: performance.now() };
   if (!next.drive) drive = null;
-  gameKey = "";
   update();
 }
 
@@ -159,25 +187,17 @@ function request() {
 }
 
 if (typeof window !== "undefined") {
-  addEventListener("resize", () => {
-    gameKey = "";
-    request();
-  });
+  addEventListener("resize", () => request());
   // The scene is fixed while the page (or the lobby overlay) scrolls; the
   // ring follows its placeholder. Capture catches scrolling inside overlays.
-  document.addEventListener(
-    "scroll",
-    () => {
-      gameKey = "";
-      draw(performance.now());
-    },
-    { capture: true, passive: true },
-  );
+  document.addEventListener("scroll", () => request(), {
+    capture: true,
+    passive: true,
+  });
   // Phones get the tall oval, compact signs, and the island's text in the panel.
   const narrow = matchMedia("(max-width: 760px)");
   const apply = () => {
     document.body.classList.toggle("narrow", narrow.matches);
-    gameKey = "";
     request();
   };
   narrow.addEventListener("change", apply);
@@ -213,6 +233,11 @@ let fit = { count: -1, width: -1, compact: false, minHeight: 0, tries: 0 };
 
 function cameras(): { lobby: Camera; game: Camera } {
   const lobbyRegion = regionOf(".scene-spot") ?? viewport();
+  // Entry and lobby never look at the game board: no fitting needed there.
+  if (mode !== "game") {
+    const lobby = fitLobbyCamera(lobbyRegion);
+    return { lobby, game: lobby };
+  }
   const boardElement = document.getElementById("board");
   const gameRegion = regionOf("#board") ?? viewport();
   const count = board?.cards.length ?? 3;
@@ -258,7 +283,7 @@ function checkSigns() {
     const height = regionOf("#board")?.height ?? innerHeight;
     fit.minHeight = Math.max(fit.minHeight, height) + 40;
   }
-  gameKey = "";
+  checkedKey = "";
   request();
 }
 
@@ -295,6 +320,20 @@ function ellipse(camera: Camera, a: number, b: number, steps = 120) {
 }
 
 function drawGround(camera: Camera, e: number) {
+  // Rebuilt only when the camera or what lies on the ground changes, not on
+  // every frame of the lobby's circling cars.
+  const key = JSON.stringify([
+    Object.values(camera).map((v) => Math.round(v * 100)),
+    Math.round(e * 1000),
+    mode,
+    board?.overtime ?? false,
+    board?.island.kind ?? "",
+    document.body.classList.contains("narrow"),
+    innerWidth,
+    innerHeight,
+  ]);
+  if (key === groundKey) return;
+  groundKey = key;
   const b = (radius: number) => radius + RING * (camera.stretch - 1);
   // Overhead the field fills the screen and the block's sides fold away.
   const half = BLOCK + 2600 * e * e;
@@ -473,83 +512,82 @@ function drawGame(camera: Camera, e: number, now: number): boolean {
   const narrow = document.body.classList.contains("narrow");
   const count = board.cards.length;
   const b = (radius: number) => radius + RING * (camera.stretch - 1);
-  const key = JSON.stringify([
-    board.cards,
-    board.selectedGap,
-    board.lockedGap,
-    board.recent,
-    board.phase,
-    Boolean(board.selectGap),
-    board.island,
-    narrow,
-    Math.round(camera.cx),
-    Math.round(camera.cy),
-    camera.s.toFixed(3),
-    camera.stretch.toFixed(2),
-    e === 1,
+  const exitLayer = $("sceneExits");
+  const signLayer = $("sceneSigns");
+  // Exits and signs are built once per circle and then updated in place, so
+  // keyboard focus and a click in progress survive other players' updates.
+  const structure = JSON.stringify(board.cards);
+  if (structure !== structureKey) {
+    structureKey = structure;
+    exitLayer.replaceChildren(
+      ...board.cards.map((_, index) => {
+        const exit = document.createElement("button");
+        exit.type = "button";
+        exit.innerHTML = CHEVRONS_SVG;
+        // Reads the current board at click time, never a stale snapshot.
+        exit.addEventListener("click", () => board?.selectGap?.(index));
+        return exit;
+      }),
+    );
+    signLayer.replaceChildren(
+      ...board.cards.map((card) => {
+        const sign = document.createElement("div");
+        sign.lang = "en";
+        const number = document.createElement("span");
+        number.className = "sign-number";
+        number.textContent = card.number === 0 ? "0/100" : String(card.number);
+        const word = document.createElement("span");
+        word.className = "sign-word";
+        word.textContent = card.word;
+        sign.append(number, word);
+        return sign;
+      }),
+    );
+  }
+  const middle = (EXIT_INNER + EXIT_OUTER) / 2 - RING;
+  const exits = ringPoints(RING, b(RING), count, 0.5);
+  Array.from(exitLayer.children).forEach((child, index) => {
+    const exit = child as HTMLButtonElement;
+    const p = exits[index]!;
+    const [x, y] = project(camera, p.x + p.nx * middle, p.y + p.ny * middle);
+    const selected = board!.selectedGap === index;
+    const locked = board!.lockedGap === index;
+    exit.className = `exit ${selected ? "selected" : ""} ${locked ? "locked" : ""}`;
+    exit.setAttribute(
+      "aria-label",
+      `${board!.exitLabels[index] ?? "Exit"}${locked ? ", locked in" : selected ? ", suggested" : ""}`,
+    );
+    exit.disabled = !board!.selectGap || board!.phase !== "guess";
+    exit.style.width = `${Math.max(16, EXIT_WIDTH * camera.s)}px`;
+    exit.style.height = `${Math.max(22, (EXIT_OUTER - EXIT_INNER) * camera.s)}px`;
+    exit.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) rotate(${rotationOf(p.nx, p.ny)}deg)`;
+  });
+  const signs = ringPoints(SIGN_RING, b(SIGN_RING), count, 0);
+  Array.from(signLayer.children).forEach((child, index) => {
+    const sign = child as HTMLElement;
+    const card = board!.cards[index]!;
+    const p = signs[index]!;
+    const [x, y] = project(camera, p.x, p.y);
+    sign.className = `sign ${card.number === 0 ? "is-anchor" : ""} ${board!.recent === card.number ? "is-recent" : ""}`;
+    // Anchored by the edge nearest the ring, so it never covers an exit.
+    sign.style.transform = `translate(${x}px, ${y}px) translate(${-50 + 50 * p.nx}%, ${-50 + 50 * p.ny}%)`;
+    sign.style.opacity =
+      e >= 1
+        ? ""
+        : String(Math.max(0, (e - 0.85 - (index / count) * 0.1) * 20));
+  });
+  renderIsland(camera, narrow);
+  layer.classList.toggle("compact", fit.compact);
+  // Once the camera has landed, measure the real signs for each new layout.
+  const layout = JSON.stringify([
+    structure,
+    fit.compact,
+    Math.round(camera.s * 1000),
+    Math.round(camera.stretch * 100),
   ]);
-  if (key !== gameKey || e < 1) {
-    gameKey = key;
-    const exits = ringPoints(RING, b(RING), count, 0.5);
-    const signs = ringPoints(SIGN_RING, b(SIGN_RING), count, 0);
-    const exitLayer = $("sceneExits");
-    const signLayer = $("sceneSigns");
-    {
-      exitLayer.replaceChildren(
-        ...exits.map((p, index) => {
-          const middle = (EXIT_INNER + EXIT_OUTER) / 2 - RING;
-          const [x, y] = project(
-            camera,
-            p.x + p.nx * middle,
-            p.y + p.ny * middle,
-          );
-          const selected = board!.selectedGap === index;
-          const locked = board!.lockedGap === index;
-          const exit = document.createElement("button");
-          exit.type = "button";
-          exit.className = `exit ${selected ? "selected" : ""} ${locked ? "locked" : ""}`;
-          exit.innerHTML = CHEVRONS_SVG;
-          exit.setAttribute(
-            "aria-label",
-            `${board!.exitLabels[index] ?? "Exit"}${locked ? ", locked in" : selected ? ", suggested" : ""}`,
-          );
-          exit.disabled = !board!.selectGap || board!.phase !== "guess";
-          exit.style.width = `${Math.max(16, EXIT_WIDTH * camera.s)}px`;
-          exit.style.height = `${Math.max(22, (EXIT_OUTER - EXIT_INNER) * camera.s)}px`;
-          exit.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) rotate(${rotationOf(p.nx, p.ny)}deg)`;
-          const select = board!.selectGap;
-          if (select) exit.addEventListener("click", () => select(index));
-          return exit;
-        }),
-      );
-      signLayer.replaceChildren(
-        ...signs.map((p, index) => {
-          const card = board!.cards[index]!;
-          const [x, y] = project(camera, p.x, p.y);
-          const sign = document.createElement("div");
-          sign.className = `sign ${card.number === 0 ? "is-anchor" : ""} ${board!.recent === card.number ? "is-recent" : ""}`;
-          sign.lang = "en";
-          const number = document.createElement("span");
-          number.className = "sign-number";
-          number.textContent =
-            card.number === 0 ? "0/100" : String(card.number);
-          const word = document.createElement("span");
-          word.className = "sign-word";
-          word.textContent = card.word;
-          sign.append(number, word);
-          // Anchored by the edge nearest the ring, so it never covers an exit.
-          sign.style.transform = `translate(${x}px, ${y}px) translate(${-50 + 50 * p.nx}%, ${-50 + 50 * p.ny}%)`;
-          sign.style.opacity =
-            e >= 1
-              ? ""
-              : String(Math.max(0, (e - 0.85 - (index / count) * 0.1) * 20));
-          return sign;
-        }),
-      );
-    }
-    renderIsland(camera, narrow);
-    layer.classList.toggle("compact", fit.compact);
-    if (e >= 1) requestAnimationFrame(checkSigns);
+  if (e >= 1 && layout !== checkedKey) {
+    checkedKey = layout;
+    requestAnimationFrame(checkSigns);
   }
   return drawDrive(camera, now);
 }
@@ -566,7 +604,7 @@ function renderIsland(camera: Camera, narrow: boolean) {
   const key = `${view.kind}:${view.title}:${view.text}`;
   if (key === islandKey) return;
   islandKey = key;
-  island.className = `island island-${view.kind}`;
+  island.className = "island";
   island.replaceChildren();
   const text = (tag: string, className: string, value: string) => {
     const node = document.createElement(tag);
@@ -654,7 +692,7 @@ function drawDrive(camera: Camera, now: number): boolean {
   }
   const [x, y] = project(camera, gx, gy);
   car.hidden = false;
-  car.style.width = `${Math.max(14, 34 * camera.s)}px`;
+  car.style.width = `${Math.max(26, 44 * camera.s)}px`;
   car.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) rotate(${(heading * 180) / Math.PI}deg)`;
   if (progressOf >= 1) {
     car.hidden = true;

@@ -15,7 +15,7 @@ import {
 } from "./lobby.ts";
 import { confirmsNewSession, mergePrivate, secondsLeft } from "./turn.ts";
 import { renderPlay } from "./play.ts";
-import { showEntry } from "./scene.ts";
+import { showEntry, showLobby } from "./scene.ts";
 import { clueError } from "../game/rules.ts";
 import type {
   CallerSnapshot,
@@ -65,6 +65,9 @@ async function setupSessionEntry() {
     seat: { participantId: string; token: string },
   ): (() => void) => {
     entry.innerHTML = LOBBY_HTML;
+    // A new session starts in the lobby view: the old board must not linger
+    // (or stay clickable) under the new lobby.
+    showLobby([]);
     const find = (id: string) => entry.querySelector<HTMLElement>(`#${id}`)!;
     find("inviteCode").textContent = code;
     const status = find("connectionStatus");
@@ -185,6 +188,7 @@ async function setupSessionEntry() {
         sessionStorage.removeItem(`round-about:${code}`);
         status.textContent = "This session has ended.";
         entry.hidden = false;
+        showLobby([]);
       },
     );
     const receive = (snapshot: CallerSnapshot) => {

@@ -244,7 +244,8 @@ export function gapCommand(
   if (
     participantId === snapshot.tipsterId ||
     snapshot.phase !== "guess" ||
-    snapshot.pendingReveal
+    snapshot.pendingReveal ||
+    snapshot.nextSquid
   )
     return null;
   return index === snapshot.selectedGap

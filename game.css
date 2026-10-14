@@ -10,7 +10,7 @@
   --amber: #ffc845;
   --cone: #ff7a2f;
   --kerb: #e04848;
-  --go: #2e8b4e;
+  --go: #257a42;
   --muted: #3a3950;
   font-family: "Pixelify Sans", sans-serif;
   color: var(--ink);
@@ -99,10 +99,10 @@ button:focus-visible, input:focus-visible { outline: 4px solid var(--amber); out
 .sign.is-anchor { background: var(--sign); color: var(--paper); }
 .sign.is-recent { outline: 4px solid var(--amber); outline-offset: 2px; }
 .sign-number { font: 400 14px/1 "Press Start 2P", monospace; }
-.sign-word { font-weight: 700; font-size: 16px; line-height: 1.05; overflow-wrap: break-word; }
-.scene-board.compact .sign { max-width: 74px; padding: 4px 5px; gap: 3px; border-width: 3px; box-shadow: 3px 3px 0 var(--ink); }
+.sign-word { font-weight: 700; font-size: 16px; line-height: 1.05; max-width: 100%; overflow-wrap: anywhere; }
+.scene-board.compact .sign { max-width: 84px; padding: 4px 5px; gap: 3px; border-width: 3px; box-shadow: 3px 3px 0 var(--ink); }
 .scene-board.compact .sign-number { font-size: 10px; }
-.scene-board.compact .sign-word { font-size: 13px; }
+.scene-board.compact .sign-word { font-size: 12px; }
 .island { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; pointer-events: none; }
 .island-title { margin: 0; font-weight: 700; font-size: 18px; }
 .island-text { margin: 0; font-weight: 600; font-size: 16px; }
@@ -115,8 +115,8 @@ button:focus-visible, input:focus-visible { outline: 4px solid var(--amber); out
 .drive-car { width: 34px; }
 
 /* Entry and lobby: windows beside (or below) the isometric diorama. */
-.session-entry { position: fixed; inset: 0; z-index: 10; overflow-x: hidden; overflow-y: auto; pointer-events: none; }
-.session-entry .lobby-side, .session-entry .title { pointer-events: auto; }
+/* The overlay catches touches too, so dragging the diorama scrolls the lobby on phones. */
+.session-entry { position: fixed; inset: 0; z-index: 10; overflow-x: hidden; overflow-y: auto; }
 .session-entry:not([hidden]) ~ .app { visibility: hidden; }
 .lobby { min-height: 100%; display: flex; align-items: center; gap: 32px; padding: 32px; }
 .scene-spot { flex: 1; align-self: stretch; min-height: 360px; }
@@ -136,7 +136,7 @@ button:focus-visible, input:focus-visible { outline: 4px solid var(--amber); out
 .session-actions { display: flex; gap: 10px; }
 .session-actions .button { font-size: 11px; }
 /* Start: the windows step away while the light runs red, amber, green. */
-.lobby.starting .lobby-side { animation: step-away 1.3s steps(5) forwards; }
+.lobby.starting .lobby-side { animation: step-away 1.3s steps(5) forwards; pointer-events: none; }
 .lobby.starting #lobbyLight .lamp.red { animation: lamp-red 1.2s steps(1) forwards; }
 .lobby.starting #lobbyLight .lamp.amber { animation: lamp-amber 1.2s steps(1) forwards; }
 .lobby.starting #lobbyLight .lamp.green { animation: lamp-green 1.2s steps(1) forwards; }
