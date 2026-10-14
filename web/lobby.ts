@@ -113,6 +113,7 @@ export const ENTRY_HTML =
   '<div class="scene-spot" aria-hidden="true"></div>' +
   '<div class="lobby-side">' +
   '<h1 class="title">Round About</h1>' +
+  '<button class="button light how-to-open" type="button" id="howToButton">How to play</button>' +
   '<div class="window entry-form">' +
   '<p class="window-text">A word game for friends on a video call: one player gives clues, everyone else picks the exit.</p>' +
   '<label>Nickname<input id="nickname" maxlength="24" required autocomplete="nickname" /></label>' +

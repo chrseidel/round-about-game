@@ -21,6 +21,7 @@ import {
 } from "./turn.ts";
 import { renderPlay } from "./play.ts";
 import { showEntry, showLobby } from "./scene.ts";
+import { setupHowTo } from "./how-to.ts";
 import { clueError } from "../game/rules.ts";
 import type {
   CallerSnapshot,
@@ -306,6 +307,10 @@ async function setupSessionEntry() {
     };
   };
   entry.innerHTML = ENTRY_HTML;
+  const openHowTo = setupHowTo(
+    document.getElementById("howToDialog") as HTMLDialogElement,
+  );
+  entry.querySelector("#howToButton")!.addEventListener("click", openHowTo);
   (entry.querySelector("#nickname") as HTMLInputElement).value = nickname;
   // Starting-word language: the last choice, else the browser's language.
   const language =

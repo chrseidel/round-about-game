@@ -54,7 +54,7 @@ test("parse requires a clue string", () => {
   assert.equal(
     parseCommandRequest({
       ...valid,
-      command: { type: "SUBMIT_CLUE", clue: "river" },
+      command: { type: "SUBMIT_CLUE", clue: "flumbo" },
     }).command.type,
     "SUBMIT_CLUE",
   );
@@ -146,7 +146,7 @@ test("apply passes the expected version to lock", () => {
     hosted.participantId,
   );
   session = drawCard(session, bob.participantId, 0);
-  session = submitClue(session, bob.participantId, "river", 1_000);
+  session = submitClue(session, bob.participantId, "flumbo", 1_000);
   session = chooseGap(session, hosted.participantId, 1);
   const lock = { type: "LOCK_GAP" as const, index: 1 };
   assert.throws(

@@ -143,6 +143,23 @@ export const CHEVRONS_SVG = sprite(
   "chevrons",
 );
 
+/** A trophy, for winning. */
+export const TROPHY_SVG = sprite(
+  [
+    "KKKKKKKKKK",
+    "KYYYYYYYYK",
+    "KYYWYYYYYK",
+    ".KYYYYYYK.",
+    "..KYYYYK..",
+    "...KYYK...",
+    "....KK....",
+    "...KYYK...",
+    "..KKKKKK..",
+  ],
+  { K: INK, Y: "#FFC845", W: LANE },
+  "trophy-svg",
+);
+
 /** A small pixel tree for the corners of the lobby's grass block. */
 export const TREE_SVG = sprite(
   [

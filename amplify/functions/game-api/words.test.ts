@@ -44,3 +44,10 @@ test("three different starting words from the chosen language", () => {
     }
   }
 });
+
+test("the API tests' clue word is never a starting word", () => {
+  for (const language of LANGUAGES)
+    assert.ok(
+      !STARTING_WORDS[language].some((word) => word.toLowerCase() === "flumbo"),
+    );
+});
