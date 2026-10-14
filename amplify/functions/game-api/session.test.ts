@@ -190,7 +190,7 @@ test("clue: only the Tipster, valid word, in time", () => {
   const { session, bob, carol } = playing();
   const drawn = drawCard(session, bob, 0);
   rejects(
-    () => submitClue(drawn, carol, "river", 1_000),
+    () => submitClue(drawn, carol, "flumbo", 1_000),
     "FORBIDDEN",
     "Only the Tipster can send the word.",
   );
@@ -205,14 +205,17 @@ test("clue: only the Tipster, valid word, in time", () => {
     "INVALID_INPUT",
     "That word is already in the circle. Choose another.",
   );
-  const sent = submitClue(drawn, bob, "river", 5_000);
+  const sent = submitClue(drawn, bob, "flumbo", 5_000);
   assert.equal(sent.game.phase, "guess");
-  assert.equal(sent.game.clue, "river");
+  assert.equal(sent.game.clue, "flumbo");
   assert.equal(sent.game.deadline, null);
   assert.equal(sent.version, drawn.version + 1);
-  assert.equal(submitClue(sent, bob, " river ", 6_000), sent);
+  assert.equal(submitClue(sent, bob, " flumbo ", 6_000), sent);
   const overtime = { ...drawn, game: { ...drawn.game, lives: 0 } };
-  assert.equal(submitClue(overtime, bob, "river", 5_000).game.deadline, 25_000);
+  assert.equal(
+    submitClue(overtime, bob, "flumbo", 5_000).game.deadline,
+    25_000,
+  );
 });
 
 test("clue in grace is accepted, after expiry it is too late", () => {
@@ -220,20 +223,20 @@ test("clue in grace is accepted, after expiry it is too late", () => {
   const drawn = drawCard(session, bob, 0);
   const grace = reconcile(drawn, 21_000);
   assert.equal(grace.game.phase, "grace");
-  assert.equal(submitClue(grace, bob, "river", 21_000).game.phase, "guess");
+  assert.equal(submitClue(grace, bob, "flumbo", 21_000).game.phase, "guess");
   rejects(
-    () => submitClue(reconcile(drawn, 24_000), bob, "river", 24_000),
+    () => submitClue(reconcile(drawn, 24_000), bob, "flumbo", 24_000),
     "INVALID_PHASE",
     "Time is up for this card.",
   );
 });
 
-/** A started game in the guess phase: Bob drew at 0 and sent "river". */
+/** A started game in the guess phase: Bob drew at 0 and sent "flumbo". */
 function guessing(lives = 3) {
   const { session, host, bob, carol } = playing();
   const drawn = drawCard(session, bob, 0);
   const ready = { ...drawn, game: { ...drawn.game, lives } };
-  return { session: submitClue(ready, bob, "river", 1_000), host, bob, carol };
+  return { session: submitClue(ready, bob, "flumbo", 1_000), host, bob, carol };
 }
 
 test("choose: Guessers only, while guessing, valid gaps", () => {
