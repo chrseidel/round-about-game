@@ -28,7 +28,7 @@ Multiplayer word-and-number game, live at `https://round-about.chreisel.net`. St
 
 ## Game and security invariants
 
-- Keep the UI sparse: one roundabout of numbered-and-worded signs, one compact turn panel. No second card list, no lengthy on-screen rules: the rules live only in the "How to play" window on the start screen (`web/how-to.ts`). Its two screenshots (`public/how-to/`) show the real game; after visual changes retake them with `node scripts/how-to-shots.mjs`. Call gaps "exits" in all copy.
+- Keep the UI sparse: one roundabout of numbered-and-worded signs, one compact turn panel. No second card list, no lengthy on-screen rules: the rules live only in the "How to play" window, opened from the start screen and the lobby (`web/how-to.ts`). Its two screenshots (`public/how-to/`) show the real game; after visual changes retake them with `node scripts/how-to-shots.mjs`. Call gaps "exits" in all copy.
 - Cards stay in ascending order. Card 0 represents **0/100**; the gap after the last card wraps to card 0 and is a valid guess. A wrong guess still inserts the drawn card in its *correct* gap and costs one life.
 - The 12-card pile is a goal, not a turn limit: a wrong guess on the last card requires replacement draws. No clue after 20 seconds plus 3 seconds' grace discards the card, costs a life and restores one pile card.
 - Losing the third life starts Overtime: 20 seconds to lock a gap; another miss or timeout ends the game. Correctly placing the last card wins even in Overtime.
