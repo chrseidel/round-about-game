@@ -15,6 +15,7 @@ import {
   lerpCamera,
   project,
   ringPoints,
+  signSpots,
   type Camera,
   type Region,
 } from "./camera.ts";
@@ -69,6 +70,9 @@ export type GameBoard = {
 
 type Mode = "entry" | "lobby" | "game";
 
+/** Phones: tall oval, the island's text in the panel. Same breakpoint as the CSS. */
+const PHONE = "(max-width: 760px)";
+
 const LIGHTS_MS = 1300;
 const CAMERA_MS = 1800;
 const LAP_MS = 40_000;
@@ -103,7 +107,14 @@ function resetGame() {
   moveDone = null;
   structureKey = "";
   checkedKey = "";
-  fit = { count: -1, width: -1, compact: false, minHeight: 0, tries: 0 };
+  fit = {
+    count: -1,
+    width: -1,
+    compact: false,
+    stagger: 0,
+    minHeight: 0,
+    tries: 0,
+  };
   const boardElement = document.getElementById("board");
   if (boardElement) boardElement.style.minHeight = "";
   $("sceneExits").replaceChildren();
@@ -195,13 +206,16 @@ if (typeof window !== "undefined") {
     passive: true,
   });
   // Phones get the tall oval, compact signs, and the island's text in the panel.
-  const narrow = matchMedia("(max-width: 760px)");
-  const apply = () => {
-    document.body.classList.toggle("narrow", narrow.matches);
-    request();
+  matchMedia(PHONE).addEventListener("change", () => request());
+  // The board's size also changes without a window resize (the panel grows,
+  // the layout switches between desktop and phone): redraw whenever it does.
+  const watch = new ResizeObserver(() => request());
+  const observe = () => {
+    const board = document.getElementById("board");
+    if (board) watch.observe(board);
+    else requestAnimationFrame(observe);
   };
-  narrow.addEventListener("change", apply);
-  apply();
+  observe();
 }
 
 function regionOf(selector: string): Region | null {
@@ -229,7 +243,14 @@ const viewport = (): Region => ({
  * board height (the page scrolls) once even compact ones would. Starts over
  * when the number of cards or the board's width changes.
  */
-let fit = { count: -1, width: -1, compact: false, minHeight: 0, tries: 0 };
+let fit = {
+  count: -1,
+  width: -1,
+  compact: false,
+  stagger: 0,
+  minHeight: 0,
+  tries: 0,
+};
 
 function cameras(): { lobby: Camera; game: Camera } {
   const lobbyRegion = regionOf(".scene-spot") ?? viewport();
@@ -241,13 +262,21 @@ function cameras(): { lobby: Camera; game: Camera } {
   const boardElement = document.getElementById("board");
   const gameRegion = regionOf("#board") ?? viewport();
   const count = board?.cards.length ?? 3;
-  const width = Math.round(gameRegion.width);
+  // Desktop rings stay perfect circles; only phones stretch into an oval.
+  const round = !document.body.classList.contains("narrow");
+  // Starts over for a new card count, board width or desktop/phone switch.
+  const width = Math.round(gameRegion.width) * (round ? 1 : -1);
   if (fit.count !== count || fit.width !== width) {
-    fit = { count, width, compact: false, minHeight: 0, tries: 0 };
+    fit = { count, width, compact: false, stagger: 0, minHeight: 0, tries: 0 };
     if (boardElement) boardElement.style.minHeight = "";
   }
-  const result = fitGame(gameRegion, count, fit.compact);
+  const result = fitGame(gameRegion, count, {
+    round,
+    compact: fit.compact,
+    stagger: fit.stagger,
+  });
   fit.compact = result.compact;
+  fit.stagger = result.stagger;
   if (
     result.minHeight > gameRegion.height + 1 &&
     result.minHeight > fit.minHeight
@@ -279,6 +308,8 @@ function checkSigns() {
   if (!collisions || fit.tries > 40) return;
   fit.tries++;
   if (!fit.compact) fit.compact = true;
+  else if (!document.body.classList.contains("narrow") && fit.stagger < 120)
+    fit.stagger = fit.stagger ? fit.stagger + 20 : 80;
   else {
     const height = regionOf("#board")?.height ?? innerHeight;
     fit.minHeight = Math.max(fit.minHeight, height) + 40;
@@ -288,6 +319,9 @@ function checkSigns() {
 }
 
 function draw(now: number) {
+  // Checked on every draw: the media query's change event is not reliable
+  // for every resize (seen with emulated viewports).
+  document.body.classList.toggle("narrow", matchMedia(PHONE).matches);
   let moving = false;
   if (moveStart !== null) {
     progress = Math.min(1, Math.max(0, (now - moveStart) / CAMERA_MS));
@@ -562,7 +596,7 @@ function drawGame(camera: Camera, e: number, now: number): boolean {
     exit.style.height = `${Math.max(22, (EXIT_OUTER - EXIT_INNER) * camera.s)}px`;
     exit.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) rotate(${rotationOf(p.nx, p.ny)}deg)`;
   });
-  const signs = ringPoints(SIGN_RING, b(SIGN_RING), count, 0);
+  const signs = signSpots(camera, count, fit.stagger);
   Array.from(signLayer.children).forEach((child, index) => {
     const sign = child as HTMLElement;
     const card = board!.cards[index]!;
@@ -582,6 +616,7 @@ function drawGame(camera: Camera, e: number, now: number): boolean {
   const layout = JSON.stringify([
     structure,
     fit.compact,
+    fit.stagger,
     Math.round(camera.s * 1000),
     Math.round(camera.stretch * 100),
   ]);

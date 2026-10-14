@@ -220,6 +220,11 @@ dialog p { color: var(--muted); font-size: 18px; line-height: 1.3; margin: 0; }
   .panel-body > p { font-size: 17px; margin-bottom: 10px; }
   .panel-header { min-height: 46px; }
 }
+/* Portrait tablets: the panel goes below the board so the circle gets the width. */
+@media (min-width: 761px) and (orientation: portrait) {
+  .layout { display: flex; flex-direction: column; align-items: stretch; gap: 16px; }
+  .board { flex: 1 1 auto; min-height: 420px; }
+}
 @media (max-width: 400px) {
   .brand { display: none; }
 }

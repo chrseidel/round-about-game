@@ -121,6 +121,47 @@ test("a board too short for its signs asks for more height", () => {
 
 test("the board can be forced to compact signs", () => {
   const board = { left: 0, top: 70, width: 900, height: 730 };
-  assert.equal(fitGame(board, 5, true).compact, true);
+  assert.equal(fitGame(board, 5, { compact: true }).compact, true);
   assert.equal(fitGame(board, 5).compact, false);
+});
+
+test("desktop rings are always perfect circles", () => {
+  const boards = [
+    { left: 0, top: 72, width: 640, height: 668 },
+    { left: 0, top: 72, width: 896, height: 620 },
+    { left: 0, top: 72, width: 1016, height: 800 },
+    { left: 0, top: 72, width: 500, height: 900 },
+  ];
+  for (const board of boards)
+    for (const count of [3, 12, 18]) {
+      const fit = fitGame(board, count, { round: true });
+      assert.equal(fit.camera.stretch, 1, `${board.width}×${board.height}`);
+      assert.equal(fit.camera.tilt, 1);
+    }
+});
+
+test("crowded desktop circles stagger their signs instead of overlapping", () => {
+  for (const board of [
+    { left: 0, top: 72, width: 640, height: 668 },
+    { left: 0, top: 72, width: 896, height: 620 },
+  ]) {
+    const fit = fitGame(board, 18, { round: true });
+    assert.equal(fit.overlaps, 0, `${board.width}×${board.height}`);
+    assert.ok(fit.stagger > 0, "staggered");
+    const reach = (SIGN_RING + fit.stagger) * fit.camera.s + COMPACT_SIGN.width;
+    assert.ok(fit.camera.cx - reach >= board.left - 1, "fits left");
+  }
+  // Roomy circles need no staggering.
+  assert.equal(
+    fitGame({ left: 0, top: 72, width: 1016, height: 980 }, 18, { round: true })
+      .stagger,
+    0,
+  );
+});
+
+test("a leftover stagger never turns a phone oval into a circle", () => {
+  const phone = { left: 0, top: 56, width: 351, height: 520 };
+  const fit = fitGame(phone, 18, { compact: true, stagger: 100 });
+  assert.equal(fit.stagger, 0);
+  assert.ok(fit.camera.stretch > 1);
 });
