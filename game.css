@@ -208,6 +208,26 @@ dialog::backdrop { background: rgba(27, 26, 46, .55); }
 dialog h2 { font: 400 15px/1.4 "Press Start 2P", monospace; margin: 0 0 10px; }
 dialog p { color: var(--muted); font-size: 18px; line-height: 1.3; margin: 0; }
 .dialog-actions { display: flex; gap: 10px; margin-top: 20px; }
+/* How to play: a scrollable pixel window over the start screen. */
+.how-to-open { width: auto; align-self: flex-start; min-height: 44px; padding: 6px 16px; }
+dialog.how-to { width: min(720px, calc(100% - 24px)); max-height: calc(100dvh - 32px); padding: 0; overflow: hidden; display: none; flex-direction: column; }
+dialog.how-to[open] { display: flex; }
+.how-to-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 4px solid var(--ink); background: var(--sign); color: #fff; }
+.how-to-head h2 { margin: 0; font: 400 16px/1.3 "Press Start 2P", monospace; color: #fff; }
+.how-to-close { width: 44px; height: 44px; border: 3px solid var(--ink); background: var(--paper); color: var(--ink); font: 700 24px/1 "Pixelify Sans", sans-serif; box-shadow: 0 3px 0 var(--ink); }
+.how-to-body { overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.how-to-body section { display: flex; gap: 14px; align-items: flex-start; }
+.how-to-body h3 { margin: 0 0 4px; font: 400 13px/1.4 "Press Start 2P", monospace; }
+.how-to-body p { margin: 0 0 6px; font-size: 17px; line-height: 1.35; color: #2a2940; }
+.how-to-icon { flex: none; width: 40px; display: block; color: var(--cone); }
+.how-to-icon svg { display: block; width: 100%; height: auto; }
+.how-to-rule { background: #dde2d6; border: 3px solid var(--ink); padding: 10px 12px; }
+.how-to-views { display: flex; flex-direction: column; gap: 18px; }
+.how-to-views figure { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.how-to-views img { display: block; width: 100%; height: auto; border: 4px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); }
+.how-to-views figcaption { font-size: 16px; line-height: 1.3; }
+.how-to-body > .button { align-self: center; width: auto; padding: 10px 28px; }
+
 .dialog-actions .button { font-size: 11px; }
 
 @media (max-width: 760px) {
