@@ -1,144 +1,234 @@
-:root { font-family: 'DM Sans', sans-serif; color: #274239; background: #f7f5f0; font-synthesis: none; }
+/* Round About: an 8-bit roundabout. Isometric lobby, top-down game. */
+:root {
+  --ink: #1b1a2e;
+  --paper: #f2f0e6;
+  --grass: #5dbb63;
+  --island: #7acc6e;
+  --asphalt: #4a4e69;
+  --sign: #3366cc;
+  --sign-dark: #24509f;
+  --amber: #ffc845;
+  --cone: #ff7a2f;
+  --kerb: #e04848;
+  --go: #257a42;
+  --muted: #3a3950;
+  font-family: "Pixelify Sans", sans-serif;
+  color: var(--ink);
+  font-synthesis: none;
+}
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; }
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #7fb8d9 0 16%, #8ec3dc 16% 30%, #a2cfdb 30% 46%, #bbdcd5 46% 62%, #d3e6cc 62% 80%, #e7eec2 80% 100%) fixed;
+}
 button, input { font: inherit; }
 button { cursor: pointer; }
-button:focus-visible, input:focus-visible { outline: 3px solid #df9d78; outline-offset: 3px; }
-.app { min-height: 100vh; max-width: 1450px; margin: auto; padding: 0 36px; }
-.topbar { height: 76px; display: flex; align-items: center; border-bottom: 1px solid #e5e7df; gap: 24px; }
-.brand { font: 600 27px 'Fraunces', serif; letter-spacing: -1.4px; white-space: nowrap; }
-.brand span { color: #df9470; }
-.status { margin: auto; display: flex; gap: 14px; align-items: center; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: #8a9a8d; }
-.status-separator { color: #d6dcd2; }
-.new-game { border: 0; background: transparent; color: #667b6d; font-size: 12px; padding: 10px; }
-.new-game:hover { color: #bd785b; }
-.layout { display: grid; grid-template-columns: minmax(0,1fr) 320px; gap: 36px; align-items: center; min-height: calc(100vh - 76px); padding: 26px 0 40px; }
-.board-area { min-width: 0; }
-.board { height: min(690px,calc(100vh - 175px)); min-height: 465px; position: relative; background: #efeee6; border-radius: 8px; overflow: hidden; }
-.orbit { position: absolute; width: min(79%,570px); aspect-ratio: 1; border: 1px dashed #bdcbbd; border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%,-50%); }
-.board-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); text-align: center; pointer-events: none; width: 190px; }
-.center-symbol { font-size: 30px; color: #d99270; }
-.board-center p { font: 400 27px/1.16 'Fraunces', serif; letter-spacing: -.6px; margin: 9px 0; overflow-wrap: anywhere; }
-.board-center em { font-weight: 400; color: #c87958; }
-.board-center>span:last-child { font-size: 10px; color: #8a9b8d; line-height: 1.4; display: block; }
-.ring-card, .ring-gap { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 2; display: flex; align-items: center; justify-content: center; }
-.ring-card { width: 91px; height: 70px; background: #e5a886; color: #493a31; box-shadow: 0 3px 0 #d29979; border-radius: 5px; flex-direction: column; gap: 5px; padding: 5px; text-align: center; overflow-wrap: anywhere; }
-.ring-card.is-anchor { background: #284b40; color: #fff9eb; box-shadow: 0 3px 0 #1e3b32; }
-.ring-card.is-recent { outline: 3px solid #fffdf7; outline-offset: 3px; }
-.ring-number { font: 500 21px/1 'Fraunces', serif; }
-.ring-word { font-size: 11px; font-weight: 700; line-height: 1.05; }
-.ring-card.compact { width: 72px; height: 58px; gap: 3px; }
-.ring-card.compact .ring-number { font-size: 17px; }
-.ring-card.compact .ring-word { font-size: 9px; }
-.ring-gap { border: 1px solid #c5d1c4; border-radius: 50%; width: 24px; height: 24px; background: #fcfbf7; color: #6b8a75; font-size: 19px; line-height: 1; transition: background .15s,transform .15s; }
-.ring-gap:hover:not(:disabled), .ring-gap.selected { background: #db956f; border-color: #db956f; color: #fff; transform: translate(-50%,-50%) scale(1.15); }
-.ring-gap:disabled { opacity: 0; pointer-events: none; }
-.play-panel { background: #fffdf8; border: 1px solid #e8e9df; border-radius: 7px; min-height: 300px; display: flex; flex-direction: column; box-shadow: 0 10px 30px #243e2e09; }
-.panel-header { height: 55px; padding: 0 26px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f0eee7; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: #9aab9a; }
-.lives { display: flex; gap: 6px; }
-.life { width: 19px; text-align: center; color: #db8a68; font-size: 20px; line-height: 1; }
-.life.lost { color: #c4cbc2; }
-.panel-body { padding: 26px; flex: 1; }
-.panel-body h1 { font: 500 32px/1.1 'Fraunces', serif; letter-spacing: -.7px; margin: 0 0 10px; }
-.panel-body>p { font-size: 12px; line-height: 1.55; color: #849387; margin: 0 0 24px; }
-.button { border: 0; border-radius: 4px; padding: 14px 16px; min-height: 45px; width: 100%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; transition: background .15s; }
-.button.primary { background: #284d40; color: #fff; }
-.button.primary:hover { background: #376955; }
-.button.coral { background: #d38160; color: #fff; }
-.button.coral:hover { background: #ba7051; }
-.button.quiet { background: #f1f2eb; color: #45604e; }
-.button:disabled { opacity: .45; cursor: not-allowed; }
-.stage-note { font-size: 11px; line-height: 1.5; color: #bd785b; margin: 8px 0 12px; }
-.stage-note:empty { display: none; }
-.clue-input[aria-invalid="true"] { border-color: #bd674b; background: #fff7f2; }
-.clue-input[aria-invalid="true"]:focus { outline-color: #bd674b; }
-.secret-card { min-height: 135px; background: #284b40; color: #f9f6e9; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; margin-bottom: 18px; }
-.secret-label, .field-label { font-size: 10px; letter-spacing: 1.3px; font-weight: 700; }
-.secret-label { color: #bfd1c2; }
-.secret-number { font: 500 64px/1 'Fraunces', serif; color: #efae8b; }
-.field-label { display: block; color: #8a9b8d; margin-bottom: 8px; }
-.timer-row { display: flex; justify-content: space-between; align-items: center; background: #f4f4ec; padding: 10px 13px; border-radius: 3px; margin-bottom: 16px; }
-.timer-label { font-size: 10px; letter-spacing: 1px; font-weight: 700; color: #869586; }
-.timer-value { font: 500 24px 'Fraunces', serif; color: #3a614c; }
-.timer-value.urgent { color: #cc7658; }
-.clue-input { width: 100%; height: 44px; border: 1px solid #dce3d9; border-radius: 3px; padding: 0 12px; color: #2d4839; background: #fff; }
-.clue-input:focus { outline: 2px solid #a7bfa7; }
-.clue-input::placeholder { color: #a9b5a8; }
-.clue-display { font: 500 23px 'Fraunces', serif; color: #496950; background: #f5f4ec; border-left: 3px solid #dd9b76; padding: 12px 14px; margin-bottom: 16px; overflow-wrap: anywhere; }
-.result-card { background: #f5f4ec; border-radius: 3px; padding: 16px; font-size: 12px; line-height: 1.6; color: #718474; margin-bottom: 18px; }
-.result-card strong { display: block; color: #31543f; font: 500 19px 'Fraunces', serif; margin-top: 5px; }
-dialog { border: 1px solid #e6e7de; border-radius: 6px; padding: 26px; width: min(365px,calc(100% - 30px)); background: #fffdf8; color: #274239; box-shadow: 0 20px 70px #183b3350; }
-dialog::backdrop { background: #172e296e; }
-dialog h2 { font: 500 26px 'Fraunces', serif; margin: 0 0 8px; }
-dialog p { color: #889889; font-size: 12px; margin: 0; }
-.dialog-actions { display: flex; gap: 8px; margin-top: 24px; }
-@media(max-width:950px) {
-  .app { padding: 0 22px; }
-  .layout { gap: 20px; grid-template-columns: minmax(0,1fr) 295px; }
-  .ring-card { width: 76px; height: 63px; }
-  .ring-number { font-size: 19px; }
-  .ring-word { font-size: 10px; }
-  .ring-card.compact { width: 62px; height: 53px; }
-  .ring-card.compact .ring-word { font-size: 8px; }
+button:focus-visible, input:focus-visible { outline: 4px solid var(--amber); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Pixel windows and buttons: thick ink outline, hard offset shadow, square corners. */
+.window { background: var(--paper); border: 4px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.window-blue { background: var(--sign); color: var(--paper); }
+.window-label { margin: 0; font-size: 17px; font-weight: 600; }
+.window-title { margin: 0; font-size: 20px; font-weight: 700; line-height: 1.1; }
+.window-text { margin: 0; font-size: 17px; line-height: 1.3; color: var(--muted); }
+.button {
+  min-height: 52px; width: 100%; padding: 10px 14px;
+  border: 4px solid var(--ink); border-radius: 0;
+  font: 400 13px/1.3 "Press Start 2P", monospace;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 5px 0 var(--ink);
 }
-@media(max-width:720px) {
-  .topbar { height: 62px; }
-  .status { font-size: 9px; gap: 7px; }
-  .layout { display: flex; flex-direction: column; align-items: stretch; gap: 14px; min-height: 0; padding: 16px 0; }
-  .board { height: min(95vw,530px); min-height: 320px; }
-  .play-panel { min-height: 0; }
-  .panel-body { padding: 20px; }
-  .panel-header { height: 50px; padding: 0 20px; }
-  .ring-card { width: 69px; height: 57px; }
-  .ring-card.compact { width: 55px; height: 47px; }
-  .ring-card.compact .ring-number { font-size: 14px; }
-  .ring-card.compact .ring-word { font-size: 7px; }
-  .ring-gap { width: 20px; height: 20px; font-size: 16px; }
-}
-@media(max-width:400px) {
-  .app { padding: 0 12px; }
-  .brand { font-size: 22px; }
-  .new-game span { display: none; }
-  .board-center { width: 130px; }
-  .board-center p { font-size: 20px; }
-  .board-center>span:last-child { font-size: 9px; }
-  .ring-card { width: 59px; height: 51px; }
-  .ring-number { font-size: 15px; }
-  .ring-word { font-size: 8px; }
-  .ring-card.compact { width: 44px; height: 41px; }
-  .ring-card.compact .ring-number { font-size: 12px; }
-  .ring-card.compact .ring-word { font-size: 6px; }
-  .ring-gap { width: 18px; height: 18px; font-size: 14px; }
-}
-:root .session-entry:not([hidden]) { position: fixed; inset: 0; z-index: 10; background: #f7f5f0; display: grid; place-items: center; padding: 20px; }
-.session-entry form { display: grid; gap: 16px; width: min(360px, 100%); }
-.session-entry label { display: grid; gap: 6px; }
-.session-entry input { padding: 10px; border: 1px solid #bdcbbd; }
+.button:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 2px 0 var(--ink); }
+.button:disabled { opacity: .5; cursor: not-allowed; }
+.button.primary { background: var(--sign); color: #fff; }
+.button.primary:hover:not(:disabled) { background: var(--sign-dark); }
+.button.go { background: var(--go); color: #fff; font-size: 15px; min-height: 56px; }
+.button.amber { background: var(--amber); color: var(--ink); }
+.button.light { background: var(--paper); color: var(--ink); font: 700 18px "Pixelify Sans", sans-serif; }
+.command-error { margin: 0; color: #fff; background: #a3271c; border: 4px solid var(--ink); padding: 6px 10px; font-weight: 600; }
+.command-error:empty { display: none; }
+
+/* Traffic light: three square lamps, lit by data-light. */
+.traffic-light { flex: none; display: inline-flex; flex-direction: column; gap: 5px; padding: 5px; background: var(--ink); }
+.traffic-light .lamp { width: 26px; height: 26px; }
+.lamp.red { background: #5a2a33; }
+.lamp.amber { background: #5e5130; }
+.lamp.green { background: #24503a; }
+[data-light="red"] .lamp.red { background: #ff5a4d; }
+[data-light="amber"] .lamp.amber { background: var(--amber); }
+[data-light="green"] .lamp.green { background: #5ce08a; }
+
+/* The scene: a fixed pixel world behind every screen. */
+.scene { position: fixed; inset: 0; z-index: 0; overflow: hidden; }
+.scene-ground { position: absolute; inset: 0; width: 100%; height: 100%; }
+.scene-ground .field { fill: var(--grass); }
+.scene-ground .asphalt { fill: var(--asphalt); }
+.scene-ground .lane-marking { fill: none; stroke: var(--paper); stroke-width: 3; stroke-dasharray: 12 12; }
+.scene-ground .kerb-white { fill: var(--paper); }
+.scene-ground .kerb-red { fill: none; stroke: var(--kerb); stroke-width: 6; stroke-dasharray: 10 10; }
+.scene-ground .island-grass { fill: var(--island); }
+.scene-ground .hazard { fill: none; stroke: var(--amber); stroke-width: 7; stroke-dasharray: 14 10; }
+.scene-ground .painted { font-family: "Press Start 2P", monospace; fill: var(--paper); }
+.scene-trees > .tree, .scene-logo, .scene-cars > *, .scene-board > *, .scene-exits > *, .scene-signs > * { position: absolute; left: 0; top: 0; }
+.tree { width: 48px; transform-origin: 50% 100%; }
+.tree-svg, .car-svg, .cone-svg, .diamond-svg, .chevrons, .roundabout-sign { display: block; width: 100%; height: auto; }
+.scene-logo .roundabout-sign { height: 100%; }
+.scene-car { width: 0; height: 0; }
+.car-body { position: absolute; left: -24px; top: -26px; width: 48px; }
+.car-body.left { transform: scaleX(-1); }
+.scene-car.arriving .car-body { animation: arrive .6s steps(4); }
+@keyframes arrive { from { transform: translateY(-40px); opacity: 0; } }
+.name-tag { position: absolute; left: 0; top: -58px; transform: translateX(-50%); white-space: nowrap; background: var(--paper); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); padding: 1px 7px 2px; font-weight: 700; font-size: 16px; }
+.name-tag.you { background: var(--amber); }
+
+/* The board: exits, signs, island, reveal car. */
+.exit { padding: 0; border: 0; background: var(--asphalt); color: transparent; border-bottom: 3px dashed var(--paper); display: flex; align-items: center; justify-content: center; }
+.exit::after { content: ""; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
+.exit .chevrons { width: 70%; }
+.exit:not(:disabled):hover { background: #5a5f7c; color: rgba(255, 200, 69, .6); }
+.exit:disabled { cursor: default; }
+.exit.selected { color: var(--amber); background: #33364a; }
+.exit.selected .chevrons { animation: blink .8s steps(1) infinite; }
+.exit.locked { color: var(--amber); background: #26283a; }
+@keyframes blink { 0%, 59% { opacity: 1; } 60%, 100% { opacity: .15; } }
+.sign { width: max-content; max-width: 124px; display: flex; flex-direction: column; align-items: center; gap: 5px; text-align: center; padding: 7px 9px 6px; background: var(--paper); color: var(--ink); border: 4px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); hyphens: auto; }
+.sign.is-anchor { background: var(--sign); color: var(--paper); }
+.sign.is-recent { outline: 4px solid var(--amber); outline-offset: 2px; }
+.sign-number { font: 400 14px/1 "Press Start 2P", monospace; }
+.sign-word { font-weight: 700; font-size: 16px; line-height: 1.05; max-width: 100%; overflow-wrap: anywhere; }
+.scene-board.compact .sign { max-width: 84px; padding: 4px 5px; gap: 3px; border-width: 3px; box-shadow: 3px 3px 0 var(--ink); }
+.scene-board.compact .sign-number { font-size: 10px; }
+.scene-board.compact .sign-word { font-size: 12px; }
+.island { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; pointer-events: none; }
+.island-title { margin: 0; font-weight: 700; font-size: 18px; }
+.island-text { margin: 0; font-weight: 600; font-size: 16px; }
+.clue-sign { background: var(--sign); color: var(--paper); border: 4px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); padding: 10px 16px 12px; display: flex; flex-direction: column; gap: 6px; max-width: 100%; }
+.clue-title { font-size: 17px; font-weight: 600; }
+.clue-word { font: 400 20px/1.25 "Press Start 2P", monospace; overflow-wrap: anywhere; }
+.secret-diamond { position: relative; width: 96px; display: grid; place-items: center; }
+.secret-diamond .diamond-svg { grid-area: 1 / 1; }
+.secret-number { grid-area: 1 / 1; font: 400 22px/1 "Press Start 2P", monospace; }
+.drive-car { width: 34px; }
+
+/* Entry and lobby: windows beside (or below) the isometric diorama. */
+/* The overlay catches touches too, so dragging the diorama scrolls the lobby on phones. */
+.session-entry { position: fixed; inset: 0; z-index: 10; overflow-x: hidden; overflow-y: auto; }
+.session-entry:not([hidden]) ~ .app { visibility: hidden; }
+.lobby { min-height: 100%; display: flex; align-items: center; gap: 32px; padding: 32px; }
+.scene-spot { flex: 1; align-self: stretch; min-height: 360px; }
+.lobby-side { width: 300px; flex: none; display: flex; flex-direction: column; gap: 20px; }
+.title { margin: 0; font: 400 26px/1.3 "Press Start 2P", monospace; color: var(--paper); text-shadow: 4px 4px 0 var(--ink); }
+.invite-code { margin: 0; font: 400 17px/1.6 "Press Start 2P", monospace; letter-spacing: 1px; overflow-wrap: anywhere; }
+.tipster-row { display: flex; gap: 12px; align-items: center; }
+.diamond-badge { position: relative; flex: none; width: 44px; display: grid; place-items: center; }
+.diamond-badge > * { grid-area: 1 / 1; }
+.diamond-badge > span { font: 400 14px "Press Start 2P", monospace; }
+.start-window { flex-direction: row; align-items: center; gap: 14px; }
+.start-body { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.connection { align-self: flex-start; margin: 0; background: var(--paper); border: 3px solid var(--ink); padding: 2px 10px; font-size: 16px; font-weight: 600; }
+.entry-form label { display: flex; flex-direction: column; gap: 6px; font-weight: 700; font-size: 17px; }
+.entry-form input, .clue-input { min-height: 50px; border: 4px solid var(--ink); border-radius: 0; background: #fff; padding: 0 12px; font: 600 19px "Pixelify Sans", sans-serif; color: var(--ink); }
+.entry-form code { font-size: 15px; }
 .session-actions { display: flex; gap: 10px; }
-.session-actions button { padding: 10px; flex: 1; }
-.session-lobby { display: grid; gap: 10px; width: min(420px, 100%); }
-.session-lobby button { padding: 8px 10px; }
-.session-lobby button[hidden] { display: none; }
-#startHint, #connectionStatus { color: #6b766b; font-size: 0.9em; }
-#commandError { color: #a33; }
-/* Shared reveal (Task 13). The team's selection stays visible for everyone,
-   including the Tipster, whose gaps are disabled. */
-.ring-gap.selected:disabled, .ring-gap.locked:disabled { opacity: 1; }
-.ring-gap.locked { background: #c4553a; border-color: #c4553a; color: #fff; transform: translate(-50%,-50%) scale(1.2); animation: hourglass-flip .6s ease-in-out; }
-@keyframes hourglass-flip { 50% { transform: translate(-50%,-50%) scale(1.2) rotate(180deg); } 100% { transform: translate(-50%,-50%) scale(1.2) rotate(180deg); } }
-.reveal-progress { height: 6px; border-radius: 3px; background: #e6e1d6; overflow: hidden; margin: 12px 0; }
-.reveal-fill { height: 100%; width: 0; background: #c4553a; animation-name: reveal-fill; animation-timing-function: linear; animation-fill-mode: forwards; }
+.session-actions .button { font-size: 11px; }
+/* Start: the windows step away while the light runs red, amber, green. */
+.lobby.starting .lobby-side { animation: step-away 1.3s steps(5) forwards; pointer-events: none; }
+.lobby.starting #lobbyLight .lamp.red { animation: lamp-red 1.2s steps(1) forwards; }
+.lobby.starting #lobbyLight .lamp.amber { animation: lamp-amber 1.2s steps(1) forwards; }
+.lobby.starting #lobbyLight .lamp.green { animation: lamp-green 1.2s steps(1) forwards; }
+@keyframes lamp-red { 0% { background: #ff5a4d; } 35% { background: #5a2a33; } }
+@keyframes lamp-amber { 0% { background: #5e5130; } 35% { background: var(--amber); } 70% { background: #5e5130; } }
+@keyframes lamp-green { 0% { background: #24503a; } 70% { background: #5ce08a; } }
+@keyframes step-away { 0%, 70% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateX(40px); } }
+
+/* Game layout above the scene; only the bar and the panel catch clicks. */
+.app { position: relative; z-index: 1; min-height: 100vh; max-width: 1400px; margin: auto; padding: 0 28px; display: flex; flex-direction: column; pointer-events: none; }
+.topbar, .play-panel { pointer-events: auto; }
+.topbar { height: 72px; display: flex; align-items: center; gap: 12px; }
+.brand { font: 400 18px "Press Start 2P", monospace; color: var(--paper); text-shadow: 3px 3px 0 var(--ink); white-space: nowrap; }
+.status { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+.draw-label { background: var(--paper); border: 3px solid var(--ink); padding: 3px 10px; font-weight: 700; font-size: 17px; }
+.pile-sign { background: var(--go); color: #fff; border: 3px solid var(--ink); padding: 3px 10px; font-weight: 700; font-size: 17px; }
+.new-game { min-height: 44px; border: 3px solid var(--ink); background: var(--paper); color: var(--ink); box-shadow: 0 4px 0 var(--ink); font-weight: 700; font-size: 17px; padding: 0 14px; }
+.layout { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: center; padding-bottom: 28px; }
+.board { align-self: stretch; min-height: 480px; }
+.play-panel { background: var(--paper); border: 4px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); display: flex; flex-direction: column; }
+.panel-header { min-height: 56px; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 4px solid var(--ink); font-weight: 700; font-size: 18px; }
+.lives { display: flex; gap: 6px; align-items: flex-end; color: var(--cone); }
+.life { width: 24px; display: block; transform-origin: 50% 90%; }
+.life.lost { color: #9aa0b4; opacity: .6; transform: rotate(-90deg) translateX(-6px); }
+.life.just-lost { animation: cone-tip .6s steps(4); }
+@keyframes cone-tip { 0% { transform: none; opacity: 1; color: var(--cone); } }
+.play-panel.overtime .panel-header { background: repeating-linear-gradient(-45deg, var(--amber) 0 12px, var(--ink) 12px 24px); }
+.play-panel.overtime #lifeText { background: var(--amber); border: 3px solid var(--ink); padding: 2px 8px; font: 400 12px "Press Start 2P", monospace; }
+.play-panel.overtime .lives { visibility: hidden; }
+.panel-body { padding: 16px 14px 18px; display: flex; flex-direction: column; }
+.panel-body h1 { font: 400 16px/1.4 "Press Start 2P", monospace; margin: 0 0 10px; }
+#turnHeading[data-tone="good"] { color: var(--go); }
+#turnHeading[data-tone="bad"] { color: #b12a1d; }
+.panel-body > p { font-size: 18px; line-height: 1.3; color: #2a2940; margin: 0 0 14px; }
+.panel-body > p:empty { display: none; }
+#turnContent { display: flex; flex-direction: column; gap: 12px; }
+.narrow-only { display: none !important; }
+body.narrow .narrow-only { display: flex !important; }
+.panel-secret { align-items: center; gap: 12px; font-size: 16px; }
+.panel-secret .secret-diamond { width: 60px; }
+.panel-secret .secret-number { font-size: 14px; }
+.panel-clue { margin: 0; gap: 6px; font-size: 18px; }
+.field-label { font-weight: 700; font-size: 17px; }
+.clue-input { width: 100%; margin-top: -6px; }
+.clue-input[aria-invalid="true"] { border-color: #b12a1d; background: #fff4f1; }
+.stage-note { margin: 0; font-size: 16px; font-weight: 600; color: #a3271c; }
+.stage-note:empty { display: none; }
+.timer-row { display: flex; align-items: center; gap: 10px; background: #dde2d6; border: 3px solid var(--ink); padding: 5px 10px; }
+.timer-row .traffic-light { flex-direction: row; gap: 3px; padding: 3px; }
+.timer-row .lamp { width: 13px; height: 13px; }
+.timer-label { font-weight: 700; font-size: 17px; flex: 1; }
+.timer-value { font: 400 16px "Press Start 2P", monospace; }
+.timer-value.urgent { color: #b12a1d; }
+.reveal-progress { height: 14px; background: #dde2d6; border: 3px solid var(--ink); overflow: hidden; }
+.reveal-fill { height: 100%; width: 0; background: var(--amber); animation-name: reveal-fill; animation-timing-function: steps(12); animation-fill-mode: forwards; }
 @keyframes reveal-fill { to { width: 100%; } }
-#turnHeading[data-tone="good"] { color: #2f7a4b; }
-#turnHeading[data-tone="bad"] { color: #c4553a; }
-.ring-card.is-recent { animation: card-in .4s ease-out; }
-@keyframes card-in { from { transform: translate(-50%,-50%) scale(.6); opacity: 0; } }
-.life.just-lost { animation: life-lost .6s ease-out; }
-@keyframes life-lost { 30% { transform: scale(1.5); color: #c4553a; } }
+
+dialog { border: 4px solid var(--ink); border-radius: 0; padding: 20px; width: min(380px, calc(100% - 32px)); background: var(--paper); color: var(--ink); box-shadow: 6px 6px 0 var(--ink); }
+dialog::backdrop { background: rgba(27, 26, 46, .55); }
+dialog h2 { font: 400 15px/1.4 "Press Start 2P", monospace; margin: 0 0 10px; }
+dialog p { color: var(--muted); font-size: 18px; line-height: 1.3; margin: 0; }
+.dialog-actions { display: flex; gap: 10px; margin-top: 20px; }
+.dialog-actions .button { font-size: 11px; }
+
+@media (max-width: 760px) {
+  .lobby { flex-direction: column; align-items: stretch; gap: 16px; padding: 16px; }
+  .scene-spot { flex: none; height: 340px; min-height: 0; }
+  .lobby-side { width: 100%; }
+  .title { font-size: 20px; text-align: center; }
+  .name-tag { font-size: 14px; top: -46px; }
+  .car-body { left: -16px; top: -18px; width: 32px; }
+  .app { padding: 0 12px; height: 100dvh; min-height: 0; }
+  .topbar { height: 54px; gap: 8px; }
+  .brand { font-size: 11px; }
+  .draw-label, .pile-sign { font-size: 14px; padding: 1px 6px; }
+  .new-game span { display: none; }
+  .new-game { padding: 0 12px; }
+  .layout { display: flex; flex-direction: column; align-items: stretch; gap: 10px; padding-bottom: 12px; min-height: 0; }
+  .board { flex: 1 1 auto; min-height: 300px; }
+  .panel-body { padding: 12px; }
+  .panel-body > p { font-size: 17px; margin-bottom: 10px; }
+  .panel-header { min-height: 46px; }
+}
+/* Portrait tablets: the panel goes below the board so the circle gets the width. */
+@media (min-width: 761px) and (orientation: portrait) {
+  .layout { display: flex; flex-direction: column; align-items: stretch; gap: 16px; }
+  .board { flex: 1 1 auto; min-height: 420px; }
+}
+@media (max-width: 400px) {
+  .brand { display: none; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .ring-gap.locked, .ring-card.is-recent, .life.just-lost { animation: none; }
+  .exit.selected .chevrons, .life.just-lost, .scene-car.arriving .car-body { animation: none; }
   .reveal-progress { display: none; }
 }
-/* Gaps are small circles; give them an invisible 44 px tap area (Task 15:
-   at phone width they are 18 px, too small to hit twice reliably). */
-.ring-gap::after { content: ""; position: absolute; inset: -13px; border-radius: 50%; }

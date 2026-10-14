@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import type { CallerSnapshot } from "../shared/protocol.ts";
 import {
   confirmsNewSession,
+  correctExit,
+  exitLabel,
   gapCommand,
+  islandView,
   mergePrivate,
   revealed,
   secondsLeft,
@@ -55,9 +58,9 @@ test("Tipster and Guesser views per phase", () => {
   const guess = snapshot({ phase: "guess", clue: "river" });
   assert.equal(
     turnView(guess, "bob").description,
-    "Your word: river. The team is guessing.",
+    "Your word: river. The team is picking an exit.",
   );
-  assert.equal(turnView(guess, "alice").heading, "Choose a gap.");
+  assert.equal(turnView(guess, "alice").heading, "Pick the exit");
   assert.equal(turnView(guess, "alice").countdown, false);
   assert.equal(
     turnView({ ...guess, deadlineUtc: 40_000 }, "alice").countdown,
@@ -136,11 +139,11 @@ test("gap clicks choose or lock", () => {
 test("selection hint", () => {
   assert.equal(
     turnView(guessing(), "alice").description,
-    "Tap ⌛ again to lock it in.",
+    "Tap the blinking exit again to lock it in, or tap another exit.",
   );
   assert.equal(
     turnView(guessing({ selectedGap: null }), "alice").description,
-    "The word is river.",
+    "The clue is river. Tap an exit to suggest it.",
   );
 });
 
@@ -162,12 +165,10 @@ test("result texts", () => {
   const correct = turnView(result({}), "alice");
   assert.equal(correct.heading, "Correct!");
   assert.ok(
-    correct.description.startsWith(
-      "river · 42 sits between Lantern and Orbit.",
-    ),
+    correct.description.startsWith("river: 42 sits between Lantern and Orbit."),
   );
   const wrong = turnView(result({ correct: false }), "bob");
-  assert.equal(wrong.heading, "Wrong gap");
+  assert.equal(wrong.heading, "Wrong exit");
   assert.ok(wrong.description.endsWith(" Life lost."));
   // A lost result always ends the game (finalStatus), so status is "lost".
   const lost = turnView(
@@ -258,14 +259,14 @@ test("the Tipster draws the next card after a result", () => {
   const tipster = turnView(afterResult(), "bob");
   assert.equal(tipster.mode, "draw");
   assert.equal(tipster.drawLabel, "Draw next card");
-  assert.equal(tipster.heading, "Wrong gap");
+  assert.equal(tipster.heading, "Wrong exit");
   assert.equal(
     turnView(afterResult({ pile: 0 }), "bob").drawLabel,
     "Draw replacement",
   );
   const guesser = turnView(afterResult(), "alice");
   assert.equal(guesser.mode, "none");
-  assert.ok(guesser.description.startsWith("river · 42 sits between"));
+  assert.ok(guesser.description.startsWith("river: 42 sits between"));
   assert.ok(
     guesser.description.endsWith(" Waiting for Bob to draw the next card."),
   );
@@ -298,4 +299,67 @@ test("a new session needs confirmation only while the game really runs", () => {
   assert.equal(confirmsNewSession(won, 9_999), true);
   assert.equal(confirmsNewSession(won, 10_000), false);
   assert.equal(confirmsNewSession(afterResult({ status: "lost" }), 0), false);
+});
+
+test("timer labels in sentence case", () => {
+  const tip = snapshot({ phase: "tip", deadlineUtc: 20_000, currentDraw: 42 });
+  assert.equal(turnView(tip, "bob").timerLabel, "Clue time");
+  const grace = snapshot({ phase: "grace", deadlineUtc: 23_000 });
+  assert.equal(turnView(grace, "alice").timerLabel, "Final seconds");
+  assert.equal(
+    turnView(guessing({ deadlineUtc: 40_000 }), "alice").timerLabel,
+    "Discussion",
+  );
+});
+
+test("exits are named after the signs on both sides", () => {
+  const cards = guessing().cards;
+  assert.equal(exitLabel(cards, 0), "Exit between 0/100 Moss and 33 Lantern");
+  assert.equal(exitLabel(cards, 2), "Exit between 66 Orbit and 0/100 Moss");
+});
+
+test("the correct exit comes from the pending result", () => {
+  assert.equal(correctExit(pending()), 1);
+  assert.equal(correctExit(guessing()), null);
+  const wrap = pending();
+  wrap.pendingReveal!.result.lower = 66;
+  assert.equal(correctExit(wrap), 2);
+});
+
+test("island shows the secret number to the Tipster only", () => {
+  const tip = snapshot({ phase: "tip", deadlineUtc: 20_000, currentDraw: 42 });
+  assert.deepEqual(islandView(tip, "bob"), {
+    kind: "secret",
+    title: "Your secret number",
+    text: "42",
+  });
+  assert.deepEqual(islandView({ ...tip, currentDraw: undefined }, "alice"), {
+    kind: "thinking",
+    title: "Bob is thinking",
+    text: "of a word",
+  });
+  assert.deepEqual(islandView(guessing(), "alice"), {
+    kind: "clue",
+    title: "Bob's clue",
+    text: "river",
+  });
+  assert.deepEqual(islandView(guessing(), "bob"), {
+    kind: "clue",
+    title: "Your clue",
+    text: "river",
+  });
+  assert.equal(islandView(snapshot(), "alice").kind, "logo");
+  const discarded = snapshot({
+    phase: "result",
+    clue: null,
+    result: { correct: false, lost: false, discarded: true, timedOut: true },
+  });
+  assert.equal(islandView(discarded, "alice").kind, "logo");
+});
+
+test("no exit taps once the host has started a new game", () => {
+  assert.equal(
+    gapCommand(guessing({ nextSquid: "ABCDEFGHJKMN" }), "alice", 2),
+    null,
+  );
 });

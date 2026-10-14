@@ -3,46 +3,46 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f7f5f0" />
+    <meta name="theme-color" content="#7fb8d9" />
     <title>Round About</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="game.css" />
     <script type="module" src="/web/main.ts"></script>
   </head>
   <body>
+    <div class="scene" id="scene">
+      <svg class="scene-ground" id="sceneGround" shape-rendering="crispEdges" aria-hidden="true"></svg>
+      <div class="scene-trees" id="sceneTrees" aria-hidden="true"></div>
+      <div class="scene-logo" id="sceneLogo" aria-hidden="true"></div>
+      <div class="scene-cars" id="sceneCars" aria-hidden="true"></div>
+      <div class="scene-board" id="sceneBoard" hidden>
+        <div class="scene-exits" id="sceneExits" role="group" aria-label="Exits"></div>
+        <div class="scene-signs" id="sceneSigns"></div>
+        <div class="island" id="sceneIsland" hidden></div>
+        <div class="drive-car" id="sceneDrive" hidden aria-hidden="true"></div>
+      </div>
+    </div>
     <div id="sessionEntry" class="session-entry" hidden></div>
     <div class="app">
       <header class="topbar">
-        <div class="brand">round about<span>.</span></div>
-        <div class="status"><span id="roundLabel">DRAW 01</span><span class="status-separator">·</span><span id="pileCount">12 CARDS LEFT</span></div>
+        <div class="brand">Round About</div>
+        <div class="status"><span id="roundLabel" class="draw-label">Draw 1</span><span id="pileCount" class="pile-sign">12 cards to go</span></div>
         <button class="new-game" id="newGameButton" type="button" aria-label="New game">↻ <span>New game</span></button>
       </header>
-
       <main class="layout">
-        <section class="board-area" aria-label="Circle of cards">
-          <div class="board" id="board">
-            <div class="orbit"></div>
-            <div id="ringCards"></div>
-            <div class="board-center">
-              <span class="center-symbol" aria-hidden="true">✳</span>
-              <p id="boardMessage">Find the<br /><em>connection.</em></p>
-              <span id="boardSubline">Tap a gap to place the hourglass</span>
-            </div>
-          </div>
-        </section>
-
+        <section class="board" id="board" aria-label="Roundabout"></section>
         <aside class="play-panel" aria-label="Current turn">
-          <div class="panel-header"><span id="lifeText">3 lives left</span><div class="lives" id="lives" aria-label="3 lives remaining"></div></div>
+          <div class="panel-header"><span id="lifeText">Lives</span><div class="lives" id="lives" role="img" aria-label="3 of 3 lives left"></div></div>
           <div class="panel-body">
             <h1 id="turnHeading">Ready?</h1>
-            <p id="turnDescription">Pass the screen to the Tipster.</p>
+            <p id="turnDescription"></p>
             <div id="turnContent"></div>
           </div>
         </aside>
       </main>
     </div>
-    <dialog id="confirmDialog"><form method="dialog"><h2>Start a new game?</h2><p>Current circle will be cleared.</p><div class="dialog-actions"><button class="button quiet" value="cancel">Keep playing</button><button class="button primary" value="confirm">New game</button></div></form></dialog>
+    <dialog id="confirmDialog"><form method="dialog"><h2>Start a new game?</h2><p>You get a fresh roundabout with a new invite link. The others can join it with one tap.</p><div class="dialog-actions"><button class="button light" value="cancel">Keep playing</button><button class="button primary" value="confirm">New game</button></div></form></dialog>
   </body>
 </html>

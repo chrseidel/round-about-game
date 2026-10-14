@@ -6,9 +6,16 @@ import {
   storedParticipant,
 } from "./session-api.ts";
 import { GameEvents } from "./events.ts";
-import { LOBBY_HTML, lobbyView, renderLobby } from "./lobby.ts";
+import {
+  ENTRY_HTML,
+  LOBBY_HTML,
+  NO_SERVER_HTML,
+  lobbyView,
+  renderLobby,
+} from "./lobby.ts";
 import { confirmsNewSession, mergePrivate, secondsLeft } from "./turn.ts";
 import { renderPlay } from "./play.ts";
+import { showEntry, showLobby } from "./scene.ts";
 import { clueError } from "../game/rules.ts";
 import type {
   CallerSnapshot,
@@ -31,15 +38,15 @@ async function setupSessionEntry() {
   } catch {
     /* no sandbox configured */
   }
-  // Without a backend, keep the single-screen prototype playable.
+  const entry = document.querySelector<HTMLDivElement>("#sessionEntry")!;
+  entry.hidden = false;
+  showEntry();
   if (!endpoint) {
-    await import("../app.js");
+    entry.innerHTML = NO_SERVER_HTML;
     return;
   }
 
   const api = new SessionApi({ gameApiUrl: endpoint });
-  const entry = document.querySelector<HTMLDivElement>("#sessionEntry")!;
-  entry.hidden = false;
   const squid = codeFromPath(location.pathname);
   const saved = squid && storedParticipant(squid);
   const nickname = localStorage.getItem("round-about:nickname") ?? "";
@@ -58,6 +65,9 @@ async function setupSessionEntry() {
     seat: { participantId: string; token: string },
   ): (() => void) => {
     entry.innerHTML = LOBBY_HTML;
+    // A new session starts in the lobby view: the old board must not linger
+    // (or stay clickable) under the new lobby.
+    showLobby([]);
     const find = (id: string) => entry.querySelector<HTMLElement>(`#${id}`)!;
     find("inviteCode").textContent = code;
     const status = find("connectionStatus");
@@ -73,15 +83,25 @@ async function setupSessionEntry() {
     let gapInFlight = false;
     let lockingGap: number | null = null;
     let revealTimer: ReturnType<typeof setTimeout> | undefined;
+    let sawLobby = false;
+    let starting = false;
     const render = () => {
       if (!latest) return;
       newGame.hidden =
         latest.hostId !== seat.participantId || Boolean(latest.nextSquid);
       if (latest.status === "lobby" && !latest.nextSquid) {
+        sawLobby = true;
         renderLobby(entry, lobbyView(latest, seat.participantId));
         return;
       }
-      entry.hidden = true;
+      // Players who watched the lobby see the light turn green and the
+      // camera swing overhead; everyone else goes straight to the board.
+      const lobby = entry.querySelector(".lobby");
+      const animate = sawLobby && !entry.hidden && Boolean(lobby) && !starting;
+      if (animate) {
+        starting = true;
+        lobby!.classList.add("starting");
+      } else if (!starting) entry.hidden = true;
       const serverNow = Date.now() + offset;
       // Re-render exactly when the shared reveal is due.
       clearTimeout(revealTimer);
@@ -127,6 +147,14 @@ async function setupSessionEntry() {
         },
         serverNow,
         lockingGap,
+        {
+          animate,
+          done: () => {
+            entry.hidden = true;
+            sawLobby = false;
+            starting = false;
+          },
+        },
       );
       tick();
     };
@@ -144,6 +172,8 @@ async function setupSessionEntry() {
       const seconds = secondsLeft(latest.deadlineUtc, offset, Date.now());
       timer.textContent = `0:${String(seconds).padStart(2, "0")}`;
       timer.classList.toggle("urgent", seconds <= 5);
+      document.getElementById("timerRow")!.dataset.light =
+        seconds > 10 ? "green" : seconds > 5 ? "amber" : "red";
     };
     const ticker = setInterval(tick, 200);
     window.addEventListener("resize", render);
@@ -158,6 +188,7 @@ async function setupSessionEntry() {
         sessionStorage.removeItem(`round-about:${code}`);
         status.textContent = "This session has ended.";
         entry.hidden = false;
+        showLobby([]);
       },
     );
     const receive = (snapshot: CallerSnapshot) => {
@@ -238,7 +269,7 @@ async function setupSessionEntry() {
       window.removeEventListener("resize", render);
     };
   };
-  entry.innerHTML = `<form id="sessionForm"><h1>Round About</h1><label>Nickname <input id="nickname" maxlength="24" required /></label><label>Session code <input id="sessionCode" placeholder="Code or invitation link" /></label><div class="session-actions"><button type="submit" name="action" value="host">Host session</button><button type="submit" name="action" value="join">Join session</button></div><p id="sessionError" role="alert"></p></form>`;
+  entry.innerHTML = ENTRY_HTML;
   (entry.querySelector("#nickname") as HTMLInputElement).value = nickname;
   (entry.querySelector("#sessionCode") as HTMLInputElement).value = squid;
   if (saved) {
