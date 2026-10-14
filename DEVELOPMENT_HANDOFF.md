@@ -57,6 +57,10 @@
 - The reveal car and the camera move run once per `revealAtUtc` / game start; reduced motion skips them and the lobby's circling cars.
 - The page reads the session code with `codeFromPath`, which tolerates `/s/<code>/`.
 
+**Live connection (issue #6)**
+
+- AppSync Events never replays events a client missed, and phones drop or freeze sockets when the screen locks, the player switches apps or the network changes. The client (`web/events.ts`) therefore: catches up and replaces a quiet socket on `visibilitychange`/`pageshow`/`online` (`resume()`), gives up on a socket after ~130 s without a keep-alive (AppSync sends one every 60 s but allows 5 minutes), and the page fetches the state once a deadline passes without news and after 15 s of silence in a running game (`catchUpDue` in `web/turn.ts`). "Reconnecting…" shows in the top bar during play.
+
 **Testing**
 
 - In browser tests with batched steps, pauses between batches eat into the 20-second clue time; keep time-sensitive steps (draw, reload, read timer) in one batch.

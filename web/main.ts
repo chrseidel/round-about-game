@@ -13,7 +13,12 @@ import {
   lobbyView,
   renderLobby,
 } from "./lobby.ts";
-import { confirmsNewSession, mergePrivate, secondsLeft } from "./turn.ts";
+import {
+  catchUpDue,
+  confirmsNewSession,
+  mergePrivate,
+  secondsLeft,
+} from "./turn.ts";
 import { renderPlay } from "./play.ts";
 import { showEntry, showLobby } from "./scene.ts";
 import { clueError } from "../game/rules.ts";
@@ -160,13 +165,31 @@ async function setupSessionEntry() {
     };
     // Every snapshot, public or private, goes through mergePrivate so the
     // Tipster's number survives public events for the same card.
+    // When the last snapshot arrived, and the deadline already caught up on.
+    let lastUpdateAt = Date.now();
+    let caughtUpDeadline: number | null = null;
     const show = (snapshot: CallerSnapshot) => {
+      lastUpdateAt = Date.now();
       if (latest && snapshot.turn !== latest.turn) draft = "";
       latest = mergePrivate(latest, snapshot);
       offset = latest.serverTimeUtc - Date.now();
       render();
     };
     const tick = () => {
+      // Safety net for live events a sleeping phone missed.
+      if (latest && document.visibilityState === "visible") {
+        const due = catchUpDue(
+          latest,
+          Date.now() + offset,
+          Date.now() - lastUpdateAt,
+          caughtUpDeadline,
+        );
+        if (due === "deadline") caughtUpDeadline = latest.deadlineUtc;
+        if (due) {
+          lastUpdateAt = Date.now();
+          events.catchUpNow();
+        }
+      }
       const timer = document.getElementById("timerValue");
       if (!timer || !latest) return;
       const seconds = secondsLeft(latest.deadlineUtc, offset, Date.now());
@@ -177,12 +200,20 @@ async function setupSessionEntry() {
     };
     const ticker = setInterval(tick, 200);
     window.addEventListener("resize", render);
+    // Back from a locked screen, another app or a dead network: catch up now.
+    const resume = () => {
+      if (document.visibilityState === "visible") events.resume();
+    };
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("pageshow", resume);
+    window.addEventListener("online", resume);
     const events = new GameEvents(
       { endpoint: eventsEndpoint!, squid: code, token: seat.token },
       show,
       () => api.snapshot(code, seat.token),
       (connected) => {
         status.textContent = connected ? "Connected" : "Reconnecting…";
+        document.getElementById("liveBadge")!.hidden = connected;
       },
       () => {
         sessionStorage.removeItem(`round-about:${code}`);
@@ -267,6 +298,10 @@ async function setupSessionEntry() {
       clearInterval(ticker);
       clearTimeout(revealTimer);
       window.removeEventListener("resize", render);
+      document.removeEventListener("visibilitychange", resume);
+      window.removeEventListener("pageshow", resume);
+      window.removeEventListener("online", resume);
+      document.getElementById("liveBadge")!.hidden = true;
     };
   };
   entry.innerHTML = ENTRY_HTML;

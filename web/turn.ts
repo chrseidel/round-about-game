@@ -291,6 +291,32 @@ export function confirmsNewSession(
   return revealed(snapshot, serverNow).status === "playing";
 }
 
+/** Slack after a deadline before the browser asks the server what happened. */
+const DEADLINE_SLACK_MS = 1_500;
+/** A running game with no news for this long fetches the state anyway. */
+const QUIET_MS = 15_000;
+
+/**
+ * Safety net for missed live events (a phone that slept): while a game runs,
+ * fetch the state once when a deadline has passed without news, and whenever
+ * nothing arrived for a while.
+ */
+export function catchUpDue(
+  snapshot: Pick<CallerSnapshot, "status" | "deadlineUtc">,
+  serverNow: number,
+  sinceUpdateMs: number,
+  caughtUpDeadline: number | null,
+): "deadline" | "quiet" | null {
+  if (snapshot.status !== "playing") return null;
+  if (
+    snapshot.deadlineUtc !== null &&
+    snapshot.deadlineUtc !== caughtUpDeadline &&
+    serverNow > snapshot.deadlineUtc + DEADLINE_SLACK_MS
+  )
+    return "deadline";
+  return sinceUpdateMs >= QUIET_MS ? "quiet" : null;
+}
+
 /** Whole seconds left on the server's clock, given the browser's clock offset. */
 export function secondsLeft(
   deadlineUtc: number | null,

@@ -3,6 +3,15 @@ import type { PublicEvent, PublicSnapshot } from "../shared/protocol.ts";
 type EventsConfig = { endpoint: string; squid: string; token: string };
 type Listener = (snapshot: PublicSnapshot) => void;
 
+/**
+ * AppSync sends a keep-alive every 60 s but allows 5 minutes of silence. A
+ * phone's socket can die silently (screen lock, network change), so give up
+ * on it after about two missed keep-alives instead.
+ */
+const SILENCE_MS = 130_000;
+/** On resume, a socket this long without a keep-alive is replaced at once. */
+const STALE_MS = 70_000;
+
 export class GameEvents {
   private socket: WebSocket | null = null;
   private version = 0;
@@ -12,6 +21,7 @@ export class GameEvents {
   private rejected = false;
   private lastKeepalive = 0;
   private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private config: EventsConfig,
@@ -23,6 +33,8 @@ export class GameEvents {
 
   async connect() {
     this.closed = false;
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
     const host = new URL(this.config.endpoint).host;
     const authorization = btoa(
       JSON.stringify({ host, Authorization: this.config.token }),
@@ -48,7 +60,36 @@ export class GameEvents {
   close() {
     this.closed = true;
     if (this.keepaliveTimer) clearInterval(this.keepaliveTimer);
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.socket?.close();
+  }
+
+  /**
+   * The page is visible again or the network is back (a phone was locked or
+   * the player switched apps). Events sent meanwhile are not replayed, so
+   * fetch the current state now, and replace a connection that has gone
+   * quiet without waiting for the growing reconnect delay.
+   */
+  resume() {
+    if (this.closed) return;
+    this.retries = 0;
+    void this.refresh();
+    const stale = Date.now() - this.lastKeepalive > STALE_MS;
+    if (this.reconnectTimer || !this.subscribed || stale) {
+      const socket = this.socket;
+      this.socket = null;
+      if (socket) {
+        socket.onclose = null;
+        socket.close();
+      }
+      if (this.keepaliveTimer) clearInterval(this.keepaliveTimer);
+      void this.connect();
+    }
+  }
+
+  /** Fetches the current state over HTTP (safety net for missed events). */
+  catchUpNow() {
+    if (!this.closed) void this.refresh();
   }
 
   private async handle(message: {
@@ -63,7 +104,7 @@ export class GameEvents {
       this.keepaliveTimer = setInterval(() => {
         if (
           Date.now() - this.lastKeepalive >
-          (message.connectionTimeoutMs ?? 300000)
+          Math.min(message.connectionTimeoutMs ?? 300000, SILENCE_MS)
         )
           this.socket?.close();
       }, 10000);
@@ -146,6 +187,6 @@ export class GameEvents {
     const delay =
       Math.min(30000, 1000 * 2 ** Math.min(this.retries++, 5)) +
       Math.random() * 300;
-    setTimeout(() => void this.connect(), delay);
+    this.reconnectTimer = setTimeout(() => void this.connect(), delay);
   }
 }

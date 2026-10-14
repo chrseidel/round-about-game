@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { CallerSnapshot } from "../shared/protocol.ts";
 import {
+  catchUpDue,
   confirmsNewSession,
   correctExit,
   exitLabel,
@@ -362,4 +363,27 @@ test("no exit taps once the host has started a new game", () => {
     gapCommand(guessing({ nextSquid: "ABCDEFGHJKMN" }), "alice", 2),
     null,
   );
+});
+
+test("a running game catches up after a missed deadline or a quiet spell", () => {
+  const playing = snapshot({ phase: "tip", deadlineUtc: 20_000 });
+  // Deadline passed (plus slack) without news: fetch once for that deadline.
+  assert.equal(catchUpDue(playing, 21_600, 1_000, null), "deadline");
+  assert.equal(catchUpDue(playing, 21_600, 1_000, 20_000), null);
+  assert.equal(catchUpDue(playing, 20_500, 1_000, null), null);
+  // No news for 15 s: fetch anyway.
+  assert.equal(
+    catchUpDue(snapshot({ deadlineUtc: null }), 0, 15_000, null),
+    "quiet",
+  );
+  assert.equal(
+    catchUpDue(snapshot({ deadlineUtc: null }), 0, 14_000, null),
+    null,
+  );
+  // Lobby and finished games stay quiet.
+  assert.equal(
+    catchUpDue(snapshot({ status: "lobby" }), 0, 60_000, null),
+    null,
+  );
+  assert.equal(catchUpDue(snapshot({ status: "won" }), 0, 60_000, null), null);
 });
