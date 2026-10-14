@@ -26,18 +26,18 @@ const LANE = "#F2F0E6";
 export const SIGN_SVG =
   '<svg class="roundabout-sign" viewBox="-46 -46 92 92" shape-rendering="crispEdges" aria-hidden="true">' +
   `<circle r="44" fill="${INK}"/><circle r="38" fill="#3366CC"/>` +
-  `<g fill="none" stroke="${LANE}" stroke-width="9">` +
+  `<g fill="none" stroke="${LANE}" stroke-width="8">` +
   [0, 120, 240]
     .map(
       (turn) =>
-        `<path d="M 20.7 3.6 A 21 21 0 0 0 8.2 -19.3" transform="rotate(${turn})"/>`,
+        `<path d="M 20.68 3.65 A 21 21 0 0 0 10.50 -18.19" transform="rotate(${turn})"/>`,
     )
     .join("") +
   `</g><g fill="${LANE}">` +
   [0, 120, 240]
     .map(
       (turn) =>
-        `<polygon points="0,-22 11,-27 7,-13" transform="rotate(${turn})"/>`,
+        `<polygon points="6.50,-11.26 14.50,-25.11 2.71,-22.69" transform="rotate(${turn})"/>`,
     )
     .join("") +
   "</g></svg>";
