@@ -16,6 +16,7 @@ import {
   authenticate,
   CommandError,
   joinSession,
+  inputLanguage,
   newSession,
   nickname,
   normalizeSquid,
@@ -241,10 +242,12 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       if (typeof replaces === "string")
         return await startReplacement(event, normalizeSquid(replaces));
       const name = inputNickname(body);
+      const language = inputLanguage(body);
       for (let attempt = 0; attempt < 3; attempt++) {
         const { session, participantId, credential } = newSession(
           name,
           Date.now(),
+          language,
         );
         try {
           await db.send(
@@ -331,7 +334,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     if (
       error instanceof SyntaxError ||
       (error instanceof Error &&
-        /^(Invalid|Enter|Nickname|Session (is full|expired))/.test(
+        /^(Invalid|Enter|Choose|Nickname|Session (is full|expired))/.test(
           error.message,
         ))
     ) {

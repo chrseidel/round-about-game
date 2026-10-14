@@ -4,7 +4,7 @@ A cooperative word-and-number game for small groups, each player on their own de
 
 ## How it plays
 
-- The circle starts with three cards, 0/100, 33 and 66, each with a word. One player claims the **Tipster** seat and keeps it for the whole game; everyone else is a **Guesser**.
+- The circle starts with three cards, 0/100, 33 and 66, each with a random word in English or German, as the host chooses. One player claims the **Tipster** seat and keeps it for the whole game; everyone else is a **Guesser**.
 - The Tipster draws a secret number (1–99) and has 20 seconds, plus 3 seconds' grace, to send **one word** (or a proper name) as a clue.
 - Any Guesser taps a gap in the circle to select it for the team; a second tap on the selected gap locks it in. All screens reveal the result together about two seconds later.
 - A wrong guess still places the card in its correct gap but costs one of three lives. A missing clue discards the card, costs a life and puts one card back on the pile.

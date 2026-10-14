@@ -22,6 +22,8 @@ export type LobbyView = {
   ready: boolean;
   startHint: string;
   started: string | null;
+  /** Which word list the starting words come from. */
+  languageLabel: string;
 };
 
 /** What the lobby shows for one participant; the server re-checks every rule. */
@@ -73,6 +75,7 @@ export function lobbyView(
     canStart: isHost && inLobby && ready,
     ready,
     startHint,
+    languageLabel: `Starting words: ${snapshot.language === "de" ? "Deutsch" : "English"}`,
     started:
       snapshot.status === "playing" && tipster
         ? `Game started. ${tipster.nickname} is the Tipster.`
@@ -92,6 +95,7 @@ export const LOBBY_HTML =
   `<div class="tipster-row"><span class="diamond-badge">${DIAMOND_SVG}<span>?</span></span>` +
   '<p class="window-title" id="tipsterTitle"></p></div>' +
   '<p class="window-text" id="tipsterText"></p>' +
+  '<p class="language-label" id="languageLabel"></p>' +
   '<button id="claimTipster" class="button amber" type="button" hidden>Be the Tipster</button></section>' +
   '<section class="window start-window" aria-label="Start">' +
   '<div class="traffic-light" id="lobbyLight" aria-hidden="true"><span class="lamp red"></span><span class="lamp amber"></span><span class="lamp green"></span></div>' +
@@ -112,6 +116,9 @@ export const ENTRY_HTML =
   '<div class="window entry-form">' +
   '<p class="window-text">A word game for friends on a video call: one player gives clues, everyone else picks the exit.</p>' +
   '<label>Nickname<input id="nickname" maxlength="24" required autocomplete="nickname" /></label>' +
+  '<fieldset class="language-choice"><legend>Starting words for a new game</legend>' +
+  '<label><input type="radio" name="language" value="en" />English</label>' +
+  '<label><input type="radio" name="language" value="de" />Deutsch</label></fieldset>' +
   '<label>Game code<input id="sessionCode" placeholder="Code or invite link" autocomplete="off" /></label>' +
   '<div class="session-actions"><button class="button primary" type="submit" name="action" value="host">Host a game</button>' +
   '<button class="button light" type="submit" name="action" value="join">Join a game</button></div>' +
@@ -152,6 +159,7 @@ export function renderLobby(root: HTMLElement, view: LobbyView) {
   );
   find("tipsterTitle").textContent = view.tipsterTitle;
   find("tipsterText").textContent = view.tipsterText;
+  find("languageLabel").textContent = view.languageLabel;
   find("lobbyStarted").textContent = view.started ?? "";
   find("lobbyStarted").hidden = !view.started;
   find("claimTipster").hidden = !view.canClaim;

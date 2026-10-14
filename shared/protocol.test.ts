@@ -138,3 +138,11 @@ test("snapshots point to a replacing session", () => {
     "ABCDEFGHJKMN",
   );
 });
+
+test("snapshots carry the starting-word language, English for older sessions", () => {
+  assert.equal(projectPublic(session(), 0).language, "en");
+  assert.equal(
+    projectPublic({ ...session(), language: "de" }, 0).language,
+    "de",
+  );
+});

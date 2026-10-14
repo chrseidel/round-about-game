@@ -4,6 +4,8 @@ export const PROTOCOL_VERSION = 1;
 export type Role = "tipster" | "guesser";
 export type Participant = { id: string; nickname: string; joinedAt: number };
 export type SessionStatus = "lobby" | "playing" | "won" | "lost";
+/** Language of the starting words, chosen by the host. */
+export type Language = "en" | "de";
 export type Session = {
   squid: string;
   version: number;
@@ -21,6 +23,8 @@ export type Session = {
   recentCommands?: string[];
   /** Set when the host started a new session; players follow this code. */
   nextSquid?: string | null;
+  /** Starting-word language; sessions from before it existed are English. */
+  language?: Language;
 };
 
 export type PublicResult = Pick<
@@ -52,6 +56,7 @@ export type PublicSnapshot = {
   revealAtUtc: number | null;
   lockedBy: string | null;
   nextSquid: string | null;
+  language: Language;
   /** Server clock when the snapshot was made; browsers correct countdowns with it. */
   serverTimeUtc: number;
   pendingReveal: {
@@ -64,7 +69,7 @@ export type PublicSnapshot = {
 export type CallerSnapshot = PublicSnapshot & { currentDraw?: number };
 export type PublicEvent = { type: "game_updated"; snapshot: PublicSnapshot };
 
-export type CreateSessionRequest = { nickname: string };
+export type CreateSessionRequest = { nickname: string; language?: Language };
 export type JoinSessionRequest = { nickname: string };
 export type ParticipantGrant = {
   participantId: string;
@@ -144,6 +149,7 @@ export function projectPublic(session: Session, now: number): PublicSnapshot {
       joinedAt,
     })),
     turnId: session.turnId,
+    language: session.language ?? "en",
     phase:
       session.status === "lobby"
         ? "lobby"

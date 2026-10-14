@@ -96,3 +96,14 @@ test("started game names the Tipster", () => {
   assert.equal(view.canClaim, false);
   assert.equal(view.canStart, false);
 });
+
+test("the lobby names the starting-word language", () => {
+  assert.equal(
+    lobbyView(snapshot({ language: "de" }), "bob").languageLabel,
+    "Starting words: Deutsch",
+  );
+  assert.equal(
+    lobbyView(snapshot({ language: "en" }), "bob").languageLabel,
+    "Starting words: English",
+  );
+});
