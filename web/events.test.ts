@@ -118,3 +118,88 @@ test("closing the connection stops reconnect attempts", async (t) => {
   await flush();
   assert.equal(FakeSocket.instances.length, 1);
 });
+
+test("resuming fetches the current state at once", async () => {
+  let current = 1;
+  const { events, updates } = setup(async () => snapshot(current));
+  void events.connect();
+  await subscribe(FakeSocket.instances[0]!);
+  // The clue's event was lost while the phone slept; no later event comes.
+  current = 2;
+  events.resume();
+  await flush();
+  assert.deepEqual(updates, [1, 2]);
+  events.close();
+});
+
+test("resuming replaces a connection without a recent keep-alive", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval", "Date"] });
+  const { events } = setup(async () => snapshot(1));
+  void events.connect();
+  await subscribe(FakeSocket.instances[0]!);
+  t.mock.timers.tick(80_000);
+  events.resume();
+  await flush();
+  assert.equal(FakeSocket.instances.length, 2);
+  events.close();
+});
+
+test("resuming keeps a connection with a recent keep-alive", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval", "Date"] });
+  const { events } = setup(async () => snapshot(1));
+  void events.connect();
+  const socket = FakeSocket.instances[0]!;
+  await subscribe(socket);
+  t.mock.timers.tick(50_000);
+  socket.receive({ type: "ka" });
+  t.mock.timers.tick(20_000);
+  events.resume();
+  await flush();
+  assert.equal(FakeSocket.instances.length, 1);
+  events.close();
+});
+
+test("a connection silent for two keep-alive intervals is replaced", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval", "Date"] });
+  const { events } = setup(async () => snapshot(1));
+  void events.connect();
+  await subscribe(FakeSocket.instances[0]!);
+  // The server promises 5 minutes, but sends a keep-alive every minute.
+  t.mock.timers.tick(140_000);
+  await flush();
+  t.mock.timers.tick(2_000);
+  await flush();
+  assert.equal(FakeSocket.instances.length, 2);
+  events.close();
+});
+
+test("resuming skips the growing reconnect delay", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval", "Date"] });
+  const { events } = setup(async () => snapshot(1));
+  void events.connect();
+  // Several failed attempts while the phone was locked.
+  for (let i = 0; i < 4; i++) {
+    FakeSocket.instances.at(-1)!.close();
+    await flush();
+    t.mock.timers.tick(40_000);
+    await flush();
+  }
+  const before = FakeSocket.instances.length;
+  FakeSocket.instances.at(-1)!.close();
+  await flush();
+  events.resume();
+  await flush();
+  assert.equal(FakeSocket.instances.length, before + 1);
+  events.close();
+});
+
+test("resuming a closed connection does nothing", async () => {
+  const { events, updates } = setup(async () => snapshot(1));
+  void events.connect();
+  await subscribe(FakeSocket.instances[0]!);
+  events.close();
+  events.resume();
+  await flush();
+  assert.equal(FakeSocket.instances.length, 1);
+  assert.deepEqual(updates, [1]);
+});

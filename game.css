@@ -152,6 +152,7 @@ button:focus-visible, input:focus-visible { outline: 4px solid var(--amber); out
 .brand { font: 400 18px "Press Start 2P", monospace; color: var(--paper); text-shadow: 3px 3px 0 var(--ink); white-space: nowrap; }
 .status { margin-left: auto; display: flex; gap: 10px; align-items: center; }
 .draw-label { background: var(--paper); border: 3px solid var(--ink); padding: 3px 10px; font-weight: 700; font-size: 17px; }
+.live-badge { background: var(--amber); border: 3px solid var(--ink); padding: 3px 10px; font-weight: 700; font-size: 17px; animation: blink 1.2s steps(1) infinite; }
 .pile-sign { background: var(--go); color: #fff; border: 3px solid var(--ink); padding: 3px 10px; font-weight: 700; font-size: 17px; }
 .new-game { min-height: 44px; border: 3px solid var(--ink); background: var(--paper); color: var(--ink); box-shadow: 0 4px 0 var(--ink); font-weight: 700; font-size: 17px; padding: 0 14px; }
 .layout { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: center; padding-bottom: 28px; }
@@ -211,7 +212,7 @@ dialog p { color: var(--muted); font-size: 18px; line-height: 1.3; margin: 0; }
   .app { padding: 0 12px; height: 100dvh; min-height: 0; }
   .topbar { height: 54px; gap: 8px; }
   .brand { font-size: 11px; }
-  .draw-label, .pile-sign { font-size: 14px; padding: 1px 6px; }
+  .draw-label, .pile-sign, .live-badge { font-size: 14px; padding: 1px 6px; }
   .new-game span { display: none; }
   .new-game { padding: 0 12px; }
   .layout { display: flex; flex-direction: column; align-items: stretch; gap: 10px; padding-bottom: 12px; min-height: 0; }
@@ -229,6 +230,6 @@ dialog p { color: var(--muted); font-size: 18px; line-height: 1.3; margin: 0; }
   .brand { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .exit.selected .chevrons, .life.just-lost, .scene-car.arriving .car-body { animation: none; }
+  .exit.selected .chevrons, .life.just-lost, .scene-car.arriving .car-body, .live-badge { animation: none; }
   .reveal-progress { display: none; }
 }
