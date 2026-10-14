@@ -87,6 +87,7 @@ export const LOBBY_HTML =
   '<div class="lobby">' +
   '<div class="scene-spot" aria-hidden="true"></div>' +
   '<div class="lobby-side">' +
+  '<button class="button light how-to-open" type="button" id="howToLobbyButton">How to play</button>' +
   '<section class="window window-blue invite" aria-label="Invite">' +
   '<p class="window-label">Invite friends with this code</p>' +
   '<p class="invite-code" id="inviteCode"></p>' +

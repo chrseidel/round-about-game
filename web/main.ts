@@ -72,6 +72,10 @@ async function setupSessionEntry() {
     seat: { participantId: string; token: string },
   ): (() => void) => {
     entry.innerHTML = LOBBY_HTML;
+    // Waiting players can read the rules while the others join.
+    entry
+      .querySelector("#howToLobbyButton")!
+      .addEventListener("click", openHowTo);
     // A new session starts in the lobby view: the old board must not linger
     // (or stay clickable) under the new lobby.
     showLobby([]);
