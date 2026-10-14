@@ -2,6 +2,7 @@ import {
   PROTOCOL_VERSION,
   type CallerSnapshot,
   type CommandRequest,
+  type Language,
   type ParticipantGrant,
   type PublicSnapshot,
   type SessionCommand,
@@ -65,11 +66,11 @@ export class SessionApi {
     return data as T;
   }
 
-  host(nickname: string) {
+  host(nickname: string, language: Language = "en") {
     return this.request<ParticipantGrant>("/sessions", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ nickname }),
+      body: JSON.stringify({ nickname, language }),
     });
   }
 

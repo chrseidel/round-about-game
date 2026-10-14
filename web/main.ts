@@ -24,6 +24,7 @@ import { showEntry, showLobby } from "./scene.ts";
 import { clueError } from "../game/rules.ts";
 import type {
   CallerSnapshot,
+  Language,
   ParticipantGrant,
   SessionCommand,
 } from "../shared/protocol.ts";
@@ -306,6 +307,13 @@ async function setupSessionEntry() {
   };
   entry.innerHTML = ENTRY_HTML;
   (entry.querySelector("#nickname") as HTMLInputElement).value = nickname;
+  // Starting-word language: the last choice, else the browser's language.
+  const language =
+    localStorage.getItem("round-about:language") ??
+    (navigator.language.toLowerCase().startsWith("de") ? "de" : "en");
+  entry.querySelector<HTMLInputElement>(
+    `input[name="language"][value="${language === "de" ? "de" : "en"}"]`,
+  )!.checked = true;
   (entry.querySelector("#sessionCode") as HTMLInputElement).value = squid;
   if (saved) {
     try {
@@ -329,7 +337,7 @@ async function setupSessionEntry() {
       try {
         const grant =
           submitter.value === "host"
-            ? await api.host(name)
+            ? await api.host(name, chosenLanguage())
             : await api.join(
                 normalizeCode(
                   (entry.querySelector("#sessionCode") as HTMLInputElement)
@@ -338,11 +346,22 @@ async function setupSessionEntry() {
                 name,
               );
         localStorage.setItem("round-about:nickname", name);
+        if (submitter.value === "host")
+          localStorage.setItem("round-about:language", chosenLanguage());
         switchTo(grant);
       } catch (error) {
         message.textContent = (error as Error).message;
       }
     });
+}
+
+/** The starting-word language picked on the entry form. */
+function chosenLanguage(): Language {
+  return document.querySelector<HTMLInputElement>(
+    'input[name="language"]:checked',
+  )?.value === "de"
+    ? "de"
+    : "en";
 }
 
 void setupSessionEntry();

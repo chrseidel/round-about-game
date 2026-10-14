@@ -1,6 +1,11 @@
 import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import { apply, clueError, createGame } from "../../../game/rules.ts";
-import { projectCaller, type Session } from "../../../shared/protocol.ts";
+import {
+  projectCaller,
+  type Language,
+  type Session,
+} from "../../../shared/protocol.ts";
+import { startingWords } from "./words.ts";
 import { finalStatus } from "../../../shared/deadlines.ts";
 
 const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
@@ -50,22 +55,19 @@ function shuffle<T>(values: T[]): T[] {
   return copy;
 }
 
-const WORDS = [
-  "Lantern",
-  "Moss",
-  "Thunder",
-  "Velvet",
-  "Compass",
-  "Whisper",
-  "Marble",
-  "Festival",
-  "Puddle",
-  "Orbit",
-  "Cinnamon",
-  "Feather",
-];
+/** The language in a create request; English unless the host chose German. */
+export function inputLanguage(body: unknown): Language {
+  const language = (body as { language?: unknown } | null)?.language;
+  if (language === undefined || language === null) return "en";
+  if (language === "en" || language === "de") return language;
+  throw new Error("Choose English or Deutsch for the starting words.");
+}
 
-export function newSession(name: string, now: number) {
+export function newSession(
+  name: string,
+  now: number,
+  language: Language = "en",
+) {
   const id = squid();
   const participantId = token();
   const credential = token();
@@ -86,11 +88,12 @@ export function newSession(name: string, now: number) {
         joinedAt: now,
       },
     ],
-    game: createGame(shuffle(WORDS).slice(0, 3), shuffle(numbers)),
+    game: createGame(startingWords(language), shuffle(numbers)),
     turnId: token(),
     revealAtUtc: null,
     lockedBy: null,
     expiresAt: Math.floor(now / 1000) + SESSION_SECONDS,
+    language,
   };
   return { session, participantId, credential };
 }
@@ -343,7 +346,7 @@ export function replaceSession(
       "Only the host can start a new session.",
     );
   const host = old.participants.find((p) => p.id === participantId)!;
-  const fresh = newSession(host.nickname, now);
+  const fresh = newSession(host.nickname, now, old.language ?? "en");
   return {
     ...fresh,
     old: {

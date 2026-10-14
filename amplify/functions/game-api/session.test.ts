@@ -1,4 +1,5 @@
 import test from "node:test";
+import { STARTING_WORDS } from "./words.ts";
 import assert from "node:assert/strict";
 import {
   authenticate,
@@ -9,6 +10,7 @@ import {
   lockGap,
   nextTurn,
   replaceSession,
+  inputLanguage,
   joinSession,
   newSession,
   nickname,
@@ -450,4 +452,23 @@ test("new session replaces the old", () => {
     authenticate(replaced.session, replaced.credential),
     replaced.participantId,
   );
+});
+
+test("the host's language decides the starting words, and a new game keeps it", () => {
+  const german = newSession("Alice", 0, "de").session;
+  assert.equal(german.language, "de");
+  for (const card of german.game.cards)
+    assert.ok(STARTING_WORDS.de.includes(card.word), card.word);
+  const english = newSession("Alice", 0).session;
+  assert.equal(english.language, "en");
+  for (const card of english.game.cards)
+    assert.ok(STARTING_WORDS.en.includes(card.word), card.word);
+  const replaced = replaceSession(german, german.hostId, 10_000);
+  assert.equal(replaced.session.language, "de");
+});
+
+test("the requested language is checked", () => {
+  assert.equal(inputLanguage({ nickname: "A" }), "en");
+  assert.equal(inputLanguage({ nickname: "A", language: "de" }), "de");
+  assert.throws(() => inputLanguage({ language: "fr" }), /English or Deutsch/);
 });
